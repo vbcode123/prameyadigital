@@ -50,7 +50,7 @@
         <div class="viewport-card">
             <div class="video-container" id="videoContainer">
                 <video id="cameraPreview" autoplay playsinline muted></video>
-                <canvas id="broadcastCanvas" style="display: none;"></canvas>
+                <canvas id="broadcastCanvas" width="1280" height="720" style="position: fixed; left: -9999px; top: -9999px; pointer-events: none; opacity: 0;"></canvas>
 
                 <!-- On-Screen TV Graphics Overlay (Visible when Live) -->
                 <div id="tvGraphicsOverlay" class="tv-overlay" style="display: none;">
@@ -61,7 +61,7 @@
                             <span>LIVE</span>
                         </div>
                         <div class="channel-logo-tag">
-                            <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital" class="overlay-logo">
+                            <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg" crossorigin="anonymous">
                         </div>
                     </div>
 
@@ -1034,6 +1034,157 @@
     let mediaRecorder = null;
     let recordedChunks = [];
 
+    // Canvas TV Graphics Compositor for RTMP Broadcast
+    const broadcastCanvas = document.getElementById('broadcastCanvas');
+    const canvasCtx = broadcastCanvas ? broadcastCanvas.getContext('2d') : null;
+    let canvasAnimId = null;
+
+    function roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+    }
+
+    function drawCanvasComposite() {
+        if (!broadcastCanvas || !canvasCtx || !cameraPreview) return;
+        const W = 1280;
+        const H = 720;
+        if (broadcastCanvas.width !== W) broadcastCanvas.width = W;
+        if (broadcastCanvas.height !== H) broadcastCanvas.height = H;
+
+        // 1. Draw Raw Camera Frame
+        if (cameraPreview.readyState >= 2 && !cameraPreview.paused && !cameraPreview.ended) {
+            canvasCtx.drawImage(cameraPreview, 0, 0, W, H);
+        } else {
+            canvasCtx.fillStyle = '#0f172a';
+            canvasCtx.fillRect(0, 0, W, H);
+        }
+
+        // 2. Render TV Graphics Overlay when ON-AIR or Previewing
+        if (sessionStatus === 'live' || sessionStatus === 'approved') {
+            const now = Date.now();
+
+            // A. Top-Left: LIVE Bug (Red pill with blinking white dot)
+            const liveX = 35;
+            const liveY = 35;
+            const liveW = 105;
+            const liveH = 38;
+            canvasCtx.fillStyle = '#dc2626';
+            roundRect(canvasCtx, liveX, liveY, liveW, liveH, 6);
+            canvasCtx.fill();
+
+            // Blinking white circle
+            const blink = Math.sin(now / 220) > 0;
+            canvasCtx.fillStyle = blink ? '#ffffff' : '#fca5a5';
+            canvasCtx.beginPath();
+            canvasCtx.arc(liveX + 22, liveY + 19, 5, 0, Math.PI * 2);
+            canvasCtx.fill();
+
+            canvasCtx.fillStyle = '#ffffff';
+            canvasCtx.font = '900 16px "Inter", -apple-system, sans-serif';
+            canvasCtx.fillText('LIVE', liveX + 38, liveY + 25);
+
+            // B. Top-Right: Prameya Digital Channel Logo
+            const logoImg = document.getElementById('overlayLogoImg');
+            const logoTagW = 200;
+            const logoTagH = 48;
+            const logoTagX = W - logoTagW - 35;
+            const logoTagY = 35;
+
+            canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.92)';
+            roundRect(canvasCtx, logoTagX, logoTagY, logoTagW, logoTagH, 6);
+            canvasCtx.fill();
+            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            canvasCtx.lineWidth = 1;
+            canvasCtx.stroke();
+
+            if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+                canvasCtx.drawImage(logoImg, logoTagX + 12, logoTagY + 6, logoTagW - 24, logoTagH - 12);
+            } else {
+                canvasCtx.fillStyle = '#f8fafc';
+                canvasCtx.font = '800 15px "Inter", -apple-system, sans-serif';
+                canvasCtx.fillText('PRAMEYA DIGITAL', logoTagX + 18, logoTagY + 30);
+            }
+
+            // C. Bottom: Lower-Third Strap
+            const repName = "{{ reporter.name|escapejs }}" || "Field Reporter";
+            const repDist = "{{ district|escapejs }}" || "Odisha";
+            const headline = (strapHeadline ? strapHeadline.textContent : '') || (headlineInput ? headlineInput.value : '') || "Ground Zero Live Field Report";
+
+            // 1) Reporter ID & District Chip
+            const repBadgeY = H - 126;
+            const repBadgeX = 40;
+            const repText = `🎤  ${repName}  |  ${repDist}`;
+            canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
+            const repTextW = canvasCtx.measureText(repText).width;
+            const repBadgeW = Math.max(200, repTextW + 30);
+
+            canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.95)';
+            roundRect(canvasCtx, repBadgeX, repBadgeY, repBadgeW, 32, 4);
+            canvasCtx.fill();
+
+            // Amber Accent Line
+            canvasCtx.fillStyle = '#f59e0b';
+            canvasCtx.fillRect(repBadgeX, repBadgeY, 5, 32);
+
+            canvasCtx.fillStyle = '#f8fafc';
+            canvasCtx.fillText(repText, repBadgeX + 16, repBadgeY + 22);
+
+            // 2) Breaking News Main Bar
+            const strapX = 40;
+            const strapY = H - 86;
+            const strapW = W - 80; // 1200px
+            const strapH = 50;
+
+            // Gradient / Dark Bar
+            const grad = canvasCtx.createLinearGradient(strapX, strapY, strapX + strapW, strapY);
+            grad.addColorStop(0, '#991b1b');
+            grad.addColorStop(0.12, '#1e1b4b');
+            grad.addColorStop(0.3, '#0f172a');
+            grad.addColorStop(1, '#0f172a');
+            canvasCtx.fillStyle = grad;
+            roundRect(canvasCtx, strapX, strapY, strapW, strapH, 6);
+            canvasCtx.fill();
+            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            canvasCtx.lineWidth = 1;
+            canvasCtx.stroke();
+
+            // Red Flash Tab "BREAKING"
+            const tabW = 140;
+            canvasCtx.fillStyle = '#dc2626';
+            roundRect(canvasCtx, strapX, strapY, tabW, strapH, 6);
+            canvasCtx.fill();
+            canvasCtx.fillRect(strapX + tabW - 8, strapY, 8, strapH); // fill right corner
+
+            canvasCtx.fillStyle = '#ffffff';
+            canvasCtx.font = '900 16px "Inter", -apple-system, sans-serif';
+            canvasCtx.fillText('BREAKING', strapX + 22, strapY + 31);
+
+            // Live Headline Text
+            canvasCtx.fillStyle = '#ffffff';
+            canvasCtx.font = 'bold 17px "Inter", -apple-system, sans-serif';
+            let maxW = strapW - tabW - 35;
+            let displayTitle = headline;
+            if (canvasCtx.measureText(displayTitle).width > maxW) {
+                while (displayTitle.length > 10 && canvasCtx.measureText(displayTitle + '...').width > maxW) {
+                    displayTitle = displayTitle.slice(0, -1);
+                }
+                displayTitle += '...';
+            }
+            canvasCtx.fillText(displayTitle, strapX + tabW + 20, strapY + 31);
+        }
+
+        canvasAnimId = requestAnimationFrame(drawCanvasComposite);
+    }
+
     // Initialize Camera Stream
     async function startCamera(facing = 'user') {
         try {
@@ -1052,6 +1203,12 @@
 
             mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
             cameraPreview.srcObject = mediaStream;
+            cameraPreview.onloadedmetadata = () => {
+                cameraPreview.play().catch(() => {});
+                if (!canvasAnimId) {
+                    drawCanvasComposite();
+                }
+            };
             cameraPlaceholder.style.display = 'none';
 
             // Audio Visualizer
@@ -1243,6 +1400,10 @@
 
     function transitionToArchive() {
         sessionStatus = 'ended';
+        if (canvasAnimId) {
+            cancelAnimationFrame(canvasAnimId);
+            canvasAnimId = null;
+        }
         setupSection.style.display = 'none';
         pendingSection.style.display = 'none';
         liveSection.style.display = 'none';
@@ -1382,12 +1543,33 @@
         liveChunkIndex = 0;
         liveChunkQueue.length = 0;
 
+        // Ensure canvas composite render loop is active
+        if (!canvasAnimId) {
+            drawCanvasComposite();
+        }
+
+        // Composite stream with TV graphics overlays burned directly into the video
+        let streamToRecord = mediaStream;
+        if (broadcastCanvas && typeof broadcastCanvas.captureStream === 'function') {
+            try {
+                const canvasStream = broadcastCanvas.captureStream(30);
+                const audioTracks = mediaStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    canvasStream.addTrack(audioTracks[0]);
+                }
+                streamToRecord = canvasStream;
+            } catch (err) {
+                console.warn('Canvas captureStream error, fallback to raw camera:', err);
+                streamToRecord = mediaStream;
+            }
+        }
+
         try {
             const options = { mimeType: 'video/webm;codecs=vp8,opus' };
-            mediaRecorder = new MediaRecorder(mediaStream, options);
+            mediaRecorder = new MediaRecorder(streamToRecord, options);
         } catch (e) {
             try {
-                mediaRecorder = new MediaRecorder(mediaStream);
+                mediaRecorder = new MediaRecorder(streamToRecord);
             } catch (err) {
                 console.warn('MediaRecorder unsupported:', err);
                 return;

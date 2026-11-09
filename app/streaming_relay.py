@@ -1,4 +1,4 @@
- """
+"""
 Real-time RTMP Streaming Relay Engine for Prameya Digital Newsroom.
 Receives incoming live video chunks from Reporter's mobile browser (WebM / MediaRecorder)
 and transcodes / relays them via FFmpeg to YouTube Live & Facebook Live RTMP endpoints.
@@ -20,7 +20,7 @@ class RelaySession:
         self.session_id = session_id
         self.target_urls = target_urls # list of RTMP URLs
         self.process = None
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.is_active = False
         self.chunks_received = 0
         self.bytes_relayed = 0

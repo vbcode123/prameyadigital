@@ -90,6 +90,11 @@
                         ⏹ Conclude Live Broadcast
                     </button>
                 </div>
+                <!-- RTMP Streaming Relay Status Strip -->
+                <div id="mcrRelayStatusBox" style="margin-top: 10px; padding: 6px 12px; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; font-size: 12px; color: #94a3b8; display: flex; align-items: center; justify-content: space-between;">
+                    <span id="mcrRelayStatusText">📡 RTMP Live Feed: Monitoring pipeline...</span>
+                    <span id="mcrRelayBadge" style="color: #10b981; font-weight: bold; font-family: monospace;">ONLINE</span>
+                </div>
             </div>
 
             <!-- Desk Prompter & Talkback Controls -->
@@ -1080,6 +1085,32 @@
         btnNormalEnd.dataset.sessionId = currentLiveSessionId;
         btnSendCue.dataset.sessionId = currentLiveSessionId;
         startTimer(data.started_at);
+
+        // Update RTMP Relay Status
+        if (data.relay) {
+            const relayText = document.getElementById('mcrRelayStatusText');
+            const relayBadge = document.getElementById('mcrRelayBadge');
+            if (relayText && relayBadge) {
+                if (!data.relay.ffmpeg_installed) {
+                    relayText.innerHTML = '⚠️ <strong>FFmpeg missing on VPS:</strong> Please run <code>sudo apt install -y ffmpeg</code>';
+                    relayBadge.textContent = 'FFMPEG MISSING';
+                    relayBadge.style.color = '#ef4444';
+                } else if (data.relay.active) {
+                    const kb = Math.round((data.relay.bytes_relayed || 0) / 1024);
+                    relayText.innerHTML = `🟢 <strong>RTMP Live:</strong> ${data.relay.chunks_received} packets (${kb} KB relayed to ${data.destination || 'YouTube'})`;
+                    relayBadge.textContent = 'TRANSMITTING';
+                    relayBadge.style.color = '#10b981';
+                } else if (data.relay.error) {
+                    relayText.textContent = 'Relay notice: ' + data.relay.error;
+                    relayBadge.textContent = 'NOTICE';
+                    relayBadge.style.color = '#f59e0b';
+                } else {
+                    relayText.textContent = '📡 RTMP Relay standby: Waiting for reporter video stream packets...';
+                    relayBadge.textContent = 'STANDBY';
+                    relayBadge.style.color = '#94a3b8';
+                }
+            }
+        }
     }
 
     function hideActiveBroadcast() {

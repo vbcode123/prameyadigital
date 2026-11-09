@@ -8307,6 +8307,7 @@ def api_social_pending_requests(request):
     active_data = None
     if active:
         elapsed = int((timezone.now() - active.started_at).total_seconds()) if active.started_at else 0
+        from .streaming_relay import relay_manager
         active_data = {
             'session_id': active.pk,
             'reporter_name': active.reporter.name,
@@ -8316,6 +8317,7 @@ def api_social_pending_requests(request):
             'destination': active.get_destination_display(),
             'current_cue': active.current_cue or '',
             'elapsed_seconds': elapsed,
+            'relay': relay_manager.get_status(active.pk),
         }
 
     return JsonResponse({
@@ -8350,11 +8352,17 @@ def api_social_approve_live(request):
     session.current_cue = "✔ You are LIVE on YouTube / Facebook! Stand by for audio."
     session.save()
 
+    # Pre-initialize streaming relay for YouTube / Facebook
+    from .streaming_relay import relay_manager
+    relay_started, relay_msg = relay_manager.start_session(session.pk, destination)
+
     return JsonResponse({
         'success': True,
         'session_id': session.pk,
         'status': session.status,
         'destination': session.destination,
+        'relay_started': relay_started,
+        'relay_message': relay_msg,
         'message': f"Broadcast is now LIVE on {session.get_destination_display()}!"
     })
 
@@ -8402,11 +8410,73 @@ def api_social_stop_live(request):
     session.current_cue = f"Broadcast Ended ({reason})"
     session.save()
 
+    # Terminate FFmpeg background relay
+    from .streaming_relay import relay_manager
+    relay_manager.stop_session(session_id)
+
     return JsonResponse({
         'success': True,
         'session_id': session.pk,
         'status': session.status,
         'message': f'Broadcast session ended successfully ({reason}).'
+    })
+
+
+@csrf_exempt
+@login_required
+def api_live_stream_chunk(request):
+    """
+    Receives real-time WebM video chunks from reporter's browser during a Live session,
+    and pipes them to FFmpeg to push into the YouTube / Facebook RTMP stream.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    session_id = request.POST.get('session_id')
+    chunk_file = request.FILES.get('video_chunk')
+    chunk_index = request.POST.get('chunk_index', 0)
+
+    if not session_id or not chunk_file:
+        return JsonResponse({'success': False, 'error': 'session_id and video_chunk required'}, status=400)
+
+    try:
+        session = LiveBroadcastSession.objects.filter(pk=session_id).first()
+        if not session:
+            return JsonResponse({'success': False, 'error': 'Session not found'}, status=404)
+
+        if session.status != 'live':
+            return JsonResponse({
+                'success': False,
+                'session_status': session.status,
+                'error': f'Session status is {session.status}, not live'
+            }, status=200)
+
+        chunk_bytes = chunk_file.read()
+        from .streaming_relay import relay_manager
+        success, msg = relay_manager.write_chunk(session_id, chunk_bytes, destination=session.destination)
+
+        return JsonResponse({
+            'success': success,
+            'session_id': session_id,
+            'chunk_index': chunk_index,
+            'bytes_relayed': len(chunk_bytes),
+            'message': msg
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def api_live_relay_status(request, session_id):
+    """
+    Returns real-time health and packet statistics of the FFmpeg RTMP relay.
+    """
+    from .streaming_relay import relay_manager
+    status = relay_manager.get_status(session_id)
+    return JsonResponse({
+        'success': True,
+        'session_id': session_id,
+        'relay': status
     })
 
 
@@ -8425,6 +8495,10 @@ def api_live_save_recording(request):
 
     if not session_id or not video_file:
         return JsonResponse({'success': False, 'error': 'session_id and video_file required'}, status=400)
+
+    # Ensure relay is stopped
+    from .streaming_relay import relay_manager
+    relay_manager.stop_session(session_id)
 
     session = get_object_or_404(LiveBroadcastSession, pk=session_id)
     session.recorded_file = video_file

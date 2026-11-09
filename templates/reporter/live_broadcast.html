@@ -193,6 +193,15 @@
                     </div>
                 </div>
 
+                <!-- RTMP Live Streaming Pipeline Status -->
+                <div id="relayStatusBox" style="margin: 12px 0; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; font-size: 13px; color: #10b981; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="relayHealthDot" style="display: inline-block; width: 9px; height: 9px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                        <span><strong>RTMP Feed:</strong> <span id="relayStatusText">Transmitting to Live Server...</span></span>
+                    </div>
+                    <span id="relayPacketCountBadge" style="background: rgba(16, 185, 129, 0.2); padding: 2px 8px; border-radius: 12px; font-weight: bold; font-family: monospace;">0 chunks</span>
+                </div>
+
                 <button type="button" id="btnEndBroadcast" class="btn-broadcast-stop">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
@@ -1317,10 +1326,62 @@
         stopRecordingAndSave();
     }
 
-    // MediaRecorder & Archiving
+    // Real-Time RTMP Streaming Pipeline & MediaRecorder Archiving
+    let liveChunkIndex = 0;
+    let isUploadingLiveChunk = false;
+    const liveChunkQueue = [];
+
+    async function processLiveChunkQueue() {
+        if (isUploadingLiveChunk || !liveChunkQueue.length || !activeSessionId || sessionStatus !== 'live') return;
+        isUploadingLiveChunk = true;
+        const item = liveChunkQueue.shift();
+
+        const chunkFormData = new FormData();
+        chunkFormData.append('session_id', activeSessionId);
+        chunkFormData.append('chunk_index', item.index);
+        chunkFormData.append('video_chunk', item.blob, `chunk_${item.index}.webm`);
+
+        try {
+            const res = await fetch('/api/live/stream-chunk/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                body: chunkFormData
+            });
+            const data = await res.json();
+            const countBadge = document.getElementById('relayPacketCountBadge');
+            const statusText = document.getElementById('relayStatusText');
+            const healthDot = document.getElementById('relayHealthDot');
+
+            if (data.success) {
+                if (countBadge) countBadge.textContent = `${item.index + 1} chunks`;
+                if (statusText) statusText.textContent = 'Transmitting LIVE to RTMP!';
+                if (healthDot) {
+                    healthDot.style.background = '#10b981';
+                    healthDot.style.boxShadow = '0 0 8px #10b981';
+                }
+            } else if (data.session_status && data.session_status !== 'live') {
+                stopPolling();
+                stopRecordingAndSave();
+            } else if (data.error && data.error.includes('FFmpeg')) {
+                if (statusText) statusText.textContent = 'Server warning: ' + data.error;
+                if (healthDot) healthDot.style.background = '#f59e0b';
+            }
+        } catch (err) {
+            console.warn('Real-time chunk push error:', err);
+        } finally {
+            isUploadingLiveChunk = false;
+            if (liveChunkQueue.length && sessionStatus === 'live') {
+                processLiveChunkQueue();
+            }
+        }
+    }
+
     function startRecording() {
         if (!mediaStream) return;
         recordedChunks = [];
+        liveChunkIndex = 0;
+        liveChunkQueue.length = 0;
+
         try {
             const options = { mimeType: 'video/webm;codecs=vp8,opus' };
             mediaRecorder = new MediaRecorder(mediaStream, options);
@@ -1336,6 +1397,11 @@
         mediaRecorder.ondataavailable = (event) => {
             if (event.data && event.data.size > 0) {
                 recordedChunks.push(event.data);
+                // Push chunk to VPS FFmpeg relay in real-time when LIVE
+                if (sessionStatus === 'live') {
+                    liveChunkQueue.push({ index: liveChunkIndex++, blob: event.data });
+                    processLiveChunkQueue();
+                }
             }
         };
         mediaRecorder.start(1000);

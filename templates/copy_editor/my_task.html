@@ -1,7 +1,7 @@
 {% extends "copy_editor/base_copy_editor.html" %}
 {% load static %}
 
-{% block title %}My Tasks - Copy Editor - Nandilive{% endblock %}
+{% block title %}My Tasks - Copy Editor - Prameya Digital{% endblock %}
 {% block page_title %}My Assigned Tasks — Editorial Copy Editing{% endblock %}
 
 {% block extra_head %}
@@ -954,7 +954,7 @@
                     <td>
                         {% if task.edited_video %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ task.edited_video.url }}', '{{ task.headline|escapejs }} [Edited Video]')" title="Click to preview Final Video" style="border-color: #6366f1;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Final Video" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Final Video" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
                                 <div class="media-play-icon" style="background: #4f46e5;">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -963,7 +963,7 @@
                             </div>
                         {% elif task.media_file %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ task.media_file.url }}', '{{ task.headline|escapejs }} [Media File]')" title="Click to preview Media">
-                                <img src="{% static 'images/nandi.png' %}" alt="Media File" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Media File" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
                                 <div class="media-play-icon">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -972,7 +972,7 @@
                             </div>
                         {% elif task.byte_media %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ task.byte_media.url }}', '{{ task.headline|escapejs }} [Soundbyte]')" title="Click to preview Soundbyte">
-                                <img src="{% static 'images/nandi.png' %}" alt="Byte Media" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Byte Media" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
                                 <div class="media-play-icon" style="background: #0284c7;">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1012,6 +1012,11 @@
 
                         <!-- Forwarded VE Badge -->
                         <div id="veBadge_{{ task.pk }}">
+                            {% if task.is_script_edited_by_copy_editor %}
+                            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #15803d; background: #dcfce7; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 999px; margin-right: 6px;">
+                                ✍️ Edited by {{ task.edited_by_copy_editor.name|default:task.assigned_copy_editor.name|default:copy_editor_user.name }}
+                            </span>
+                            {% endif %}
                             {% if task.assigned_visual_editor %}
                             <span class="badge-ve-sent" title="Story forwarded to Visual Editor">
                                 🎬 Sent to VE: {{ task.assigned_visual_editor.name }}

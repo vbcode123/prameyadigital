@@ -100,6 +100,7 @@ urlpatterns = [
     # 5. Reporter Portal URLs (Reporter Access)
     # ==========================================
     path('reporter/dashboard/', views.reporter_dashboard_view, name='reporter_dashboard'),
+    path('reporter/live/', views.reporter_live_view, name='reporter_live'),
     path('reporter/profile/', views.reporter_profile_view, name='reporter_profile'),
     path('reporter/teleprompter/', views.reporter_teleprompter_view, name='reporter_teleprompter'),
     path('reporter/teleprompter/<int:pk>/', views.reporter_teleprompter_view, name='reporter_teleprompter_detail'),
@@ -145,6 +146,8 @@ urlpatterns = [
     # 6b. Social Media Portal URLs (Social Media Staff Access)
     # ==========================================
     path('social-media/dashboard/', views.social_media_dashboard_view, name='social_media_dashboard'),
+    path('social-media/live-control/', views.social_media_live_control_view, name='social_media_live_control'),
+    path('social-media/live-settings/', views.social_media_live_settings_view, name='social_media_live_settings'),
     path('social-media/my-task/', views.social_media_my_task_view, name='social_media_my_task'),
     path('social-media/tasks/', views.social_media_my_task_view, name='social_media_tasks'),
     path('social-media/profile/', views.social_media_profile_view, name='social_media_profile'),
@@ -263,5 +266,16 @@ urlpatterns = [
     path('api/media-download/status/', views.check_download_status_view, name='check_download_status'),
     path('api/media-download/admin-requests/', views.admin_download_requests_api, name='admin_download_requests_api'),
     path('admin-download-approvals/', views.admin_download_approvals_view, name='admin_download_approvals'),
+
+    # ==========================================
+    # 9. Real-time Live Broadcast APIs
+    # ==========================================
+    path('api/live/request/', views.api_reporter_request_live, name='api_reporter_request_live'),
+    path('api/live/status/<int:session_id>/', views.api_reporter_poll_status, name='api_reporter_poll_status'),
+    path('api/live/pending-requests/', views.api_social_pending_requests, name='api_social_pending_requests'),
+    path('api/live/approve/', views.api_social_approve_live, name='api_social_approve_live'),
+    path('api/live/cue/', views.api_social_send_cue, name='api_social_send_cue'),
+    path('api/live/stop/', views.api_social_stop_live, name='api_social_stop_live'),
+    path('api/live/save-recording/', views.api_live_save_recording, name='api_live_save_recording'),
 ]
 

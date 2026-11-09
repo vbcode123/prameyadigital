@@ -1,15 +1,16 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Nandilive Voice Over Portal{% endblock %}</title>
+    <title>{% block title %}Prameya Digital Voice Over Portal{% endblock %}</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+
     <style>
         :root {
             --vo-navy: #0f172a;
@@ -483,12 +484,13 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
+
 <body>
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <a href="{% url 'voice_over_dashboard' %}" class="sidebar-brand">
-                <img src="{% static 'images/nandi.png' %}" alt="Nandilive Logo" class="sidebar-logo-img">
+                <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital Logo" class="sidebar-logo-img">
                 <span class="vo-pill">Voice Over</span>
             </a>
 
@@ -506,8 +508,10 @@
             </div>
 
             <nav class="sidebar-nav">
-                <a href="{% url 'voice_over_dashboard' %}" class="nav-item {% if active_page == 'voice_over_dashboard' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'voice_over_dashboard' %}"
+                    class="nav-item {% if active_page == 'voice_over_dashboard' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <rect x="3" y="3" width="7" height="9"></rect>
                         <rect x="14" y="3" width="7" height="5"></rect>
                         <rect x="14" y="12" width="7" height="9"></rect>
@@ -516,21 +520,26 @@
                     <span>Dashboard</span>
                 </a>
 
-                <a href="{% url 'voice_over_my_task' %}" class="nav-item {% if active_page == 'voice_over_my_task' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'voice_over_my_task' %}"
+                    class="nav-item {% if active_page == 'voice_over_my_task' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <path d="M9 11l3 3L22 4"></path>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                     </svg>
                     <span>My Task</span>
                     {% if pending_count %}
-                    <span style="margin-left: auto; background: #7c3aed; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">
+                    <span
+                        style="margin-left: auto; background: #7c3aed; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">
                         {{ pending_count }}
                     </span>
                     {% endif %}
                 </a>
 
-                <a href="{% url 'voice_over_my_work_list' %}" class="nav-item {% if active_page == 'voice_over_my_work_list' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'voice_over_my_work_list' %}"
+                    class="nav-item {% if active_page == 'voice_over_my_work_list' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <line x1="8" y1="6" x2="21" y2="6"></line>
                         <line x1="8" y1="12" x2="21" y2="12"></line>
                         <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -540,34 +549,42 @@
                     </svg>
                     <span>My Work List</span>
                     {% if completed_count %}
-                    <span style="margin-left: auto; background: #16a34a; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">
+                    <span
+                        style="margin-left: auto; background: #16a34a; color: #fff; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 9999px;">
                         {{ completed_count }}
                     </span>
                     {% endif %}
                 </a>
 
-                <a href="{% url 'voice_over_profile' %}" class="nav-item {% if active_page == 'voice_over_profile' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'voice_over_profile' %}"
+                    class="nav-item {% if active_page == 'voice_over_profile' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
                     <span>My Profile</span>
                 </a>
 
-                <a href="{% url 'voice_over_chat_desk' %}" class="nav-item {% if active_page == 'voice_over_chat_desk' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'voice_over_chat_desk' %}"
+                    class="nav-item {% if active_page == 'voice_over_chat_desk' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                     <span>Chat with Desk</span>
                     {% if vo_unread_chat_count %}
-                    <span style="margin-left: auto; background-color: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; box-shadow: 0 1px 4px rgba(239,68,68,0.4);">{{ vo_unread_chat_count }}</span>
+                    <span
+                        style="margin-left: auto; background-color: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; box-shadow: 0 1px 4px rgba(239,68,68,0.4);">{{
+                        vo_unread_chat_count }}</span>
                     {% endif %}
                 </a>
             </nav>
 
             <div class="sidebar-footer">
                 <a href="{% url 'voice_over_logout' %}" class="nav-item" style="color: #fca5a5;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                         <polyline points="16 17 21 12 16 7"></polyline>
                         <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -585,7 +602,8 @@
             <header class="top-header">
                 <div class="header-left">
                     <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Toggle Sidebar">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <line x1="3" y1="12" x2="21" y2="12"></line>
                             <line x1="3" y1="6" x2="21" y2="6"></line>
                             <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -595,7 +613,8 @@
                 </div>
 
                 <div class="header-right">
-                    <a href="{% url 'voice_over_profile' %}" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text-main); font-weight: 600;">
+                    <a href="{% url 'voice_over_profile' %}"
+                        style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text-main); font-weight: 600;">
                         <div class="profile-avatar">
                             {{ request.user.voice_over_profile.name|default:request.user.first_name|slice:":1"|upper }}
                         </div>
@@ -632,4 +651,5 @@
     {% block extra_scripts %}{% endblock %}
     {% include "common/_download_guard.html" %}
 </body>
+
 </html>

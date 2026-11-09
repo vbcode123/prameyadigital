@@ -272,7 +272,7 @@ def analyze_reference_image_for_prompt(image_bytes, user_prompt, style="photorea
     producing a high-quality visual scene description for news graphics generation.
     """
     vision_prompt = (
-        "You are an expert Indian TV news graphic designer and visual prompt engineer for Nandilive News.\n"
+        "You are an expert Indian TV news graphic designer and visual prompt engineer for Prameya Digital News.\n"
         "You are given a reference photograph and user instructions (in Hindi, Odia, English, or Hinglish).\n\n"
         f"Story Headline: {headline or 'News story'}\n"
         f"User Instructions: {user_prompt}\n"
@@ -445,7 +445,7 @@ def improve_news_script(raw_text, headline="", news_type="AVO", tone="standard",
         )
 
     # Contextual prompt for TV News Scripts
-    prompt = f"""You are an elite TV News Editor and Chief Copy Editor for Nandilive News Channel.
+    prompt = f"""You are an elite TV News Editor and Chief Copy Editor for Prameya Digital News Channel.
 Your task is to check, correct, and professionally polish the following news script submitted by a ground field reporter.
 
 RULES:
@@ -523,7 +523,7 @@ ORIGINAL REPORTER DRAFT:
         'success': True,
         'improved_text': formatted,
         'summary': summary_note,
-        'provider': 'Nandilive News Formatter (Offline)',
+        'provider': 'Prameya Digital News Formatter (Offline)',
         'has_api_key': False,
         'note': 'No external AI API key configured. You can provide a Gemini API key for deep generative rewriting.'
     }

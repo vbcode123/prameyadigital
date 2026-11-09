@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Nandilive Reporter Portal{% endblock %}</title>
+    <title>{% block title %}Prameya Digital Reporter Portal{% endblock %}</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -616,7 +616,7 @@
         <aside class="sidebar" id="sidebar">
             <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-right: 12px;">
                 <a href="{% url 'reporter_dashboard' %}" class="sidebar-brand" style="border-bottom: none; flex: 1;">
-                    <img src="{% static 'images/nandi.png' %}" alt="Nandilive Logo" class="sidebar-logo-img">
+                    <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital Logo" class="sidebar-logo-img">
                     <div class="press-pill">Reporter</div>
                 </a>
                 <button type="button" class="sidebar-close-btn" onclick="toggleSidebar()" aria-label="Close Sidebar">
@@ -708,6 +708,17 @@
                         </a>
                     </div>
                 </div>
+
+                <a href="{% url 'reporter_live' %}"
+                    class="nav-item {% if active_page == 'reporter_live' %}active{% endif %}"
+                    style="{% if active_page != 'reporter_live' %}color: #fb7185;{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                    <span style="font-weight: 700;">🔴 Go Live (Studio)</span>
+                </a>
 
                 <a href="{% url 'reporter_teleprompter' %}"
                     class="nav-item {% if active_page == 'reporter_teleprompter' %}active{% endif %}">

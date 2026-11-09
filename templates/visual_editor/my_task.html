@@ -1,7 +1,7 @@
 {% extends "visual_editor/base_visual_editor.html" %}
 {% load static %}
 
-{% block title %}My Tasks - Visual Editor - Nandilive{% endblock %}
+{% block title %}My Tasks - Visual Editor - Prameya Digital{% endblock %}
 {% block page_title %}My Assigned Tasks — Video &amp; Visual Packaging{% endblock %}
 
 {% block extra_head %}
@@ -833,14 +833,14 @@
         <!-- Media Thumb -->
         <div class="task-media-thumb" onclick="openStoryModal('storyModal-{{ task.pk }}')" title="Click to view story details">
             {% if task.media_file %}
-                <img src="{% static 'images/nandi.png' %}" alt="Footage Thumb">
+                <img src="{% static 'images/prameya.png' %}" alt="Footage Thumb">
                 <div class="task-play-overlay">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
                 </div>
             {% else %}
-                <img src="{% static 'images/nandi.png' %}" alt="Nandilive">
+                <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital">
             {% endif %}
         </div>
 
@@ -866,8 +866,8 @@
 
             <!-- Team status strip: Copy Editor, Graphic Designer, Voice Over -->
             <div class="task-team-tag-strip">
-                <span class="team-mini-pill {% if task.assigned_copy_editor %}pill-active{% endif %}" title="Copy Editor">
-                    ✍️ Copy: {{ task.assigned_copy_editor.name|default:"Desk" }}
+                <span class="team-mini-pill {% if task.is_script_edited_by_copy_editor or task.edited_by_copy_editor or task.assigned_copy_editor %}pill-active{% endif %}" title="Copy Editor">
+                    ✍️ Copy: {% if task.edited_by_copy_editor %}{{ task.edited_by_copy_editor.name }}{% elif task.assigned_copy_editor %}{{ task.assigned_copy_editor.name }}{% else %}Desk{% endif %}{% if task.is_script_edited_by_copy_editor %} ✓{% endif %}
                 </span>
                 <span class="team-mini-pill {% if task.assigned_graphic_designer %}pill-active{% endif %}" title="Graphic Designer">
                     🎨 Graphics: {{ task.assigned_graphic_designer.name|default:"Desk" }}
@@ -1121,20 +1121,41 @@
                     <div class="tab-staff-banner banner-ce">
                         <div class="staff-profile-info">
                             <div class="staff-avatar-initial" style="background: #2563eb;">
-                                {{ task.assigned_copy_editor.name|default:'C'|slice:':1'|upper }}
+                                {% if task.edited_by_copy_editor %}
+                                    {{ task.edited_by_copy_editor.name|slice:':1'|upper }}
+                                {% elif task.assigned_copy_editor %}
+                                    {{ task.assigned_copy_editor.name|slice:':1'|upper }}
+                                {% else %}
+                                    C
+                                {% endif %}
                             </div>
                             <div>
                                 <div style="font-size: 13.5px; font-weight: 700; color: #1e3a8a;">
-                                    {{ task.assigned_copy_editor.name|default:'Desk / Editorial Copy' }}
+                                    {% if task.edited_by_copy_editor %}
+                                        {{ task.edited_by_copy_editor.name }}
+                                    {% elif task.assigned_copy_editor %}
+                                        {{ task.assigned_copy_editor.name }}
+                                    {% else %}
+                                        Desk / Editorial Copy
+                                    {% endif %}
                                 </div>
                                 <div style="font-size: 12px; color: #3b82f6;">
-                                    Role: Copy Editor &bull; 📞 {{ task.assigned_copy_editor.phone_number|default:'-' }}
+                                    Role: Copy Editor &bull; 📞 
+                                    {% if task.edited_by_copy_editor and task.edited_by_copy_editor.phone_number %}
+                                        {{ task.edited_by_copy_editor.phone_number }}
+                                    {% elif task.assigned_copy_editor and task.assigned_copy_editor.phone_number %}
+                                        {{ task.assigned_copy_editor.phone_number }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                         <div>
-                            {% if task.assigned_copy_editor %}
-                            <span class="badge badge-published">Assigned</span>
+                            {% if task.is_script_edited_by_copy_editor %}
+                            <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-weight: 700; font-size: 12px; padding: 5px 12px;">✓ Edited by {% if task.edited_by_copy_editor %}{{ task.edited_by_copy_editor.name }}{% elif task.assigned_copy_editor %}{{ task.assigned_copy_editor.name }}{% else %}Copy Editor{% endif %}</span>
+                            {% elif task.assigned_copy_editor %}
+                            <span class="badge badge-published">Assigned: {{ task.assigned_copy_editor.name }}</span>
                             {% else %}
                             <span class="badge badge-draft">Desk Staff</span>
                             {% endif %}
@@ -1167,6 +1188,12 @@
                                 </button>
                             </div>
                         </div>
+                        {% if task.is_script_edited_by_copy_editor %}
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12.5px; color: #166534; font-weight: 600; margin-bottom: 12px;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            <span>Script modified &amp; saved by <strong>{% if task.edited_by_copy_editor %}{{ task.edited_by_copy_editor.name }}{% elif task.assigned_copy_editor %}{{ task.assigned_copy_editor.name }}{% else %}Copy Editor{% endif %}</strong>{% if task.script_edited_at %} &bull; {{ task.script_edited_at|date:"d M, Y - h:i A" }}{% elif task.sent_to_visual_editor_at %} &bull; {{ task.sent_to_visual_editor_at|date:"d M, Y - h:i A" }}{% endif %}</span>
+                        </div>
+                        {% endif %}
                         <div class="odia-text-body">{{ task.description|linebreaksbr }}</div>
                     </div>
 

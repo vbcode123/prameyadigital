@@ -1,7 +1,7 @@
 {% extends "voice_over/base_voice_over.html" %}
 {% load static %}
 
-{% block title %}My Tasks - Voice Over - Nandilive{% endblock %}
+{% block title %}My Tasks - Voice Over - Prameya Digital{% endblock %}
 {% block page_title %}My Assigned Tasks — Voice Over &amp; Narration{% endblock %}
 
 {% block extra_head %}
@@ -815,7 +815,7 @@
 
                         <!-- Hashtags Strip -->
                         <div class="hashtags-wrap">
-                            <span class="hashtag-pill primary-tag">#Nandilive</span>
+                            <span class="hashtag-pill primary-tag">#PrameyaDigital</span>
                             <span class="hashtag-pill primary-tag">#OdishaNews</span>
                             <span class="hashtag-pill">#BreakingNews</span>
                             <span class="hashtag-pill">#{{ task.district|cut:" "|upper }}</span>
@@ -1149,7 +1149,7 @@ function copyStoryScript(scriptText) {
 function copyStoryHashtags(category, district) {
     const cleanCat = (category || 'BreakingNews').replace(/\s+/g, '');
     const cleanDist = (district || 'Odisha').replace(/\s+/g, '').toUpperCase();
-    const hashtags = `#Nandilive #OdishaNews #${cleanCat} #${cleanDist} #Odisha`;
+    const hashtags = `#PrameyaDigital #OdishaNews #${cleanCat} #${cleanDist} #Odisha`;
 
     navigator.clipboard.writeText(hashtags).then(() => {
         showToast('✓ Hashtags Copied: ' + hashtags);

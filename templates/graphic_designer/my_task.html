@@ -1,7 +1,7 @@
 {% extends "graphic_designer/base_graphic_designer.html" %}
 {% load static %}
 
-{% block title %}My Tasks - Graphic Designer - Nandilive{% endblock %}
+{% block title %}My Tasks - Graphic Designer - Prameya Digital{% endblock %}
 {% block page_title %}My Assigned Tasks — Graphics &amp; Creatives{% endblock %}
 
 {% block extra_head %}
@@ -1186,12 +1186,12 @@
                 </div>
                 {% else %}
                 <div class="task-media-thumb placeholder-thumb">
-                    <img src="{% static 'images/nandi.png' %}" alt="Nandilive">
+                    <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital">
                 </div>
                 {% endif %}
             {% else %}
                 <div class="task-media-thumb placeholder-thumb">
-                    <img src="{% static 'images/nandi.png' %}" alt="Nandilive">
+                    <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital">
                 </div>
             {% endif %}
 
@@ -2081,7 +2081,7 @@
 
                 const downloadLink = document.getElementById('aiDownloadLink');
                 downloadLink.href = data.image_url;
-                downloadLink.download = data.filename || 'nandilive_ai_graphic.jpg';
+                downloadLink.download = data.filename || 'prameya_digital_ai_graphic.jpg';
 
                 if (badge) {
                     let badgeHtml = '';

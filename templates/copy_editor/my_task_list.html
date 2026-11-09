@@ -1,7 +1,7 @@
 {% extends "copy_editor/base_copy_editor.html" %}
 {% load static %}
 
-{% block title %}My Task List - Forwarded to Visual Editor - Nandilive{% endblock %}
+{% block title %}My Task List - Forwarded to Visual Editor - Prameya Digital{% endblock %}
 {% block page_title %}My Task List — Forwarded to Visual Editor{% endblock %}
 
 {% block extra_head %}
@@ -706,7 +706,7 @@
                     <td>
                         {% if task.edited_video %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ task.edited_video.url }}', '{{ task.headline|escapejs }} [Edited Video]')" title="Click to preview Final Video" style="border-color: #6366f1;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Final Video" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Final Video" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
                                 <div class="media-play-icon" style="background: #4f46e5;">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -715,7 +715,7 @@
                             </div>
                         {% elif task.media_file %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ task.media_file.url }}', '{{ task.headline|escapejs }} [Media File]')" title="Click to preview Media">
-                                <img src="{% static 'images/nandi.png' %}" alt="Media File" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Media File" class="media-thumb-img" style="object-fit: contain; padding: 4px;">
                                 <div class="media-play-icon">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -749,6 +749,12 @@
                                 <span>Polished Script Narrative:</span>
                             </div>
                             <div id="scriptText_{{ task.pk }}">{{ task.description|default:"No narrative script text entered yet." }}</div>
+                        </div>
+
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #15803d; background: #dcfce7; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 999px;">
+                                ✍️ Polished by {{ task.edited_by_copy_editor.name|default:task.assigned_copy_editor.name|default:copy_editor_user.name }}
+                            </span>
                         </div>
 
                         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">

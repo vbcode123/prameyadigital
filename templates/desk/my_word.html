@@ -1078,7 +1078,7 @@
                     <td>
                         {% if item.has_edited_video %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ item.edited_video.url }}', '{{ item.headline|escapejs }} [Final Broadcast Video]')" title="Click to preview Final Broadcast Video" style="border: 2px solid #6366f1; position: relative; cursor: pointer;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
                                 <div class="media-play-icon" style="background: #4f46e5;">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1088,7 +1088,7 @@
                             </div>
                         {% elif item.media_file %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ item.media_file.url }}', '{{ item.headline|escapejs }}')" title="Click to preview video">
-                                <img src="{% static 'images/nandi.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
                                 <div class="media-play-icon">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1097,7 +1097,7 @@
                             </div>
                         {% elif item.byte_media %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ item.byte_media.url }}', '{{ item.headline|escapejs }}')" title="Click to preview byte video">
-                                <img src="{% static 'images/nandi.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
                                 <div class="media-play-icon">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1106,7 +1106,7 @@
                             </div>
                         {% else %}
                             <div class="media-thumb-box" style="background-color: #06181b;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Nandi" class="media-thumb-img" style="object-fit: contain; padding: 6px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Nandi" class="media-thumb-img" style="object-fit: contain; padding: 6px;">
                             </div>
                         {% endif %}
                     </td>

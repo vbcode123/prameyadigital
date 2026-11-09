@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Video Studio — {{ news.headline|truncatewords:8 }} — Nandilive</title>
+    <title>News Video Studio — {{ news.headline|truncatewords:8 }} — Prameya Digital</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1254,7 +1254,7 @@
         </a>
 
         <div class="logo-badge">
-            <img src="{% static 'images/nandi.png' %}" alt="Nandilive Logo" id="nandiLogoImg">
+            <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital Logo" id="channelLogoImg">
             <span class="studio-title-pill">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="12" cy="12" r="10"></circle>
@@ -1517,6 +1517,13 @@
                         </select>
                     </div>
                 </div>
+
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between;">
+                    <label for="logoBackingCheck" style="font-size: 11.5px; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="logoBackingCheck" checked>
+                        <span>Logo Clean Plate (Masks video logos)</span>
+                    </label>
+                </div>
             </div>
 
             <!-- Theme Presets -->
@@ -1568,7 +1575,7 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="field-group">
                     <label class="field-label">Reporter Name:</label>
-                    <input type="text" id="reporterNameInput" class="field-input" value="{{ news.reporter.name|default:news.author.get_full_name|default:'Nandilive Desk' }}">
+                    <input type="text" id="reporterNameInput" class="field-input" value="{{ news.reporter.name|default:news.author.get_full_name|default:'Prameya Digital Desk' }}">
                 </div>
                 <div class="field-group">
                     <label class="field-label">District / Beat:</label>
@@ -1699,7 +1706,7 @@
             </div>
 
             <div class="success-actions-row">
-                <a id="btnDownloadFinished" href="#" download="nandilive_broadcast_news_{{ news.pk }}.webm" class="btn-ctrl" style="flex: 1; height: 42px; width: auto; background: #2563eb; color: #fff; font-weight: 700; text-decoration: none; border-radius: 8px;">
+                <a id="btnDownloadFinished" href="#" download="prameya_digital_broadcast_news_{{ news.pk }}.webm" class="btn-ctrl" style="flex: 1; height: 42px; width: auto; background: #2563eb; color: #fff; font-weight: 700; text-decoration: none; border-radius: 8px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px;">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
@@ -1721,7 +1728,8 @@
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('rawSourceVideo');
     const audio = document.getElementById('sourceAudio');
-    const logoImg = document.getElementById('nandiLogoImg');
+    const logoImg = document.getElementById('channelLogoImg') || document.getElementById('nandiLogoImg');
+    const logoBackingCheck = document.getElementById('logoBackingCheck');
 
     const btnPlayPause = document.getElementById('btnPlayPause');
     const playIcon = document.getElementById('playIcon');
@@ -2592,7 +2600,7 @@
             ctx.fillStyle = '#64748b';
             ctx.font = `bold ${Math.round(W * 0.024)}px Inter, sans-serif`;
             ctx.textAlign = 'center';
-            ctx.fillText('NANDILIVE FIELD FOOTAGE PREVIEW', W / 2, H / 2);
+            ctx.fillText('PRAMEYA DIGITAL FIELD FOOTAGE PREVIEW', W / 2, H / 2);
             return;
         }
 
@@ -2715,12 +2723,43 @@
         // 3. Channel Watermark Logo (Top-Right) — Always shown for branding
         if (logoImg && logoImg.complete) {
             ctx.save();
-            ctx.shadowColor = 'rgba(0,0,0,0.7)';
-            ctx.shadowBlur = 8 * S;
-            const logoW = Math.round((isVertical ? 135 : 155) * S);
-            const logoH = Math.round(logoW * 0.3);
+            const naturalAspect = (logoImg.naturalWidth && logoImg.naturalHeight)
+                ? (logoImg.naturalHeight / logoImg.naturalWidth)
+                : 0.416;
+            const logoW = Math.round((isVertical ? 150 : 175) * S);
+            const logoH = Math.round(logoW * naturalAspect);
             const logoX = W - logoW - Math.round(24 * S);
             const logoY = Math.round(20 * S);
+
+            const usePlate = !logoBackingCheck || logoBackingCheck.checked;
+            if (usePlate) {
+                const padX = Math.round(14 * S);
+                const padY = Math.round(8 * S);
+                const plateX = logoX - padX;
+                const plateY = logoY - padY;
+                const plateW = logoW + (padX * 2);
+                const plateH = logoH + (padY * 2);
+                const radius = Math.round(8 * S);
+
+                ctx.fillStyle = 'rgba(11, 15, 25, 0.94)';
+                ctx.shadowColor = 'rgba(0,0,0,0.7)';
+                ctx.shadowBlur = 10 * S;
+                ctx.beginPath();
+                if (typeof ctx.roundRect === 'function') {
+                    ctx.roundRect(plateX, plateY, plateW, plateH, radius);
+                } else {
+                    ctx.rect(plateX, plateY, plateW, plateH);
+                }
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = Math.max(1, Math.round(1.5 * S));
+                ctx.stroke();
+            } else {
+                ctx.shadowColor = 'rgba(0,0,0,0.75)';
+                ctx.shadowBlur = 8 * S;
+            }
+
             ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
             ctx.restore();
         }
@@ -2782,7 +2821,7 @@
         ctx.fillText('FLASH NEWS', tabWidth / 2, tickerY + (tickerHeight / 2) + Math.round(5 * S));
 
         // Scrolling Ticker Text
-        const tickerText = (tickerInput.value.trim() || 'Nandilive 24x7 News Network • Ground Zero Field Coverage').replace(/\n/g, '  |  ');
+        const tickerText = (tickerInput.value.trim() || 'Prameya Digital 24x7 News Network • Ground Zero Field Coverage').replace(/\n/g, '  |  ');
         const tickerFontSize = Math.round((isVertical ? 15 : 17) * S);
         ctx.font = `700 ${tickerFontSize}px Inter, "Noto Sans Oriya", sans-serif`;
         ctx.fillStyle = theme.tickerText;
@@ -2837,7 +2876,7 @@
         ctx.font = `800 ${headlineFontSize}px Inter, "Noto Sans Oriya", sans-serif`;
         ctx.textAlign = 'left';
 
-        const headlineText = headlineInput.value.trim() || 'NANDILIVE EXCLUSIVE BROADCAST';
+        const headlineText = headlineInput.value.trim() || 'PRAMEYA DIGITAL EXCLUSIVE BROADCAST';
         const maxTextW = strapW - Math.round(36 * S);
         const textStartX = strapMargin + Math.round(18 * S);
 
@@ -3165,7 +3204,7 @@
 
                 // Send to backend via FormData
                 const formData = new FormData();
-                formData.append('video_file', blob, `nandilive_broadcast_${ratioTag}_${currentQualityKey}p_${Date.now()}.webm`);
+                formData.append('video_file', blob, `prameya_digital_broadcast_${ratioTag}_${currentQualityKey}p_${Date.now()}.webm`);
 
                 const csrfToken = getCookie('csrftoken');
                 const saveUrl = `{% url 'save_edited_video' news.pk %}`;

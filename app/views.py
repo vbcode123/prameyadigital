@@ -2,6 +2,7 @@ import os
 import io
 import re
 import shutil
+import tempfile
 import zipfile
 from datetime import datetime, date, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
@@ -17,10 +18,11 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from .models import (
     Reporter, Desk, SocialMedia, GraphicDesigner, InputUser, VoiceOverUser, CopyEditor, VisualEditor, generate_next_reporter_id,
     News, NewsMedia, NEWS_TYPE_CHOICES, NEWS_CATEGORY_CHOICES, NEWS_STATUS_CHOICES, TeleprompterScript, DeskVisualChatMessage, DeskCopyChatMessage, DeskVoiceOverChatMessage, DeskSocialChatMessage, DeskReporterChatMessage,
-    MediaDownloadRequest
+    MediaDownloadRequest, LiveStreamSetting, LiveBroadcastSession
 )
 
 
@@ -91,6 +93,19 @@ def is_admin_user(user):
         not hasattr(user, 'copy_editor_profile') and
         not hasattr(user, 'visual_editor_profile')
     )
+
+
+def is_live_control_authorized(user):
+    if not (user and user.is_authenticated):
+        return False
+    return (
+        hasattr(user, 'social_media_profile') or
+        hasattr(user, 'desk_profile') or
+        user.is_superuser or
+        user.is_staff or
+        is_admin_user(user)
+    )
+
 
 
 def admin_required(view_func):
@@ -2821,6 +2836,7 @@ def desk_my_word_view(request):
     Displays news stories verified and selected by the Input Desk.
     Defaults to Pending stories waiting to be dispatched, with tab to view all.
     """
+    _ensure_copy_editor_columns()
     desk = getattr(request.user, 'desk_profile', None)
     today = timezone.now().date()
     today_str = today.strftime('%Y-%m-%d')
@@ -2843,7 +2859,7 @@ def desk_my_word_view(request):
     # Base Query: news selected/approved by Input Desk
     base_qs = News.objects.select_related(
         'reporter', 'author',
-        'assigned_copy_editor', 'assigned_visual_editor',
+        'assigned_copy_editor', 'edited_by_copy_editor', 'assigned_visual_editor',
         'assigned_voice_over', 'assigned_graphic_designer',
         'assigned_social_media'
     ).prefetch_related('additional_media').filter(status='Approved')
@@ -2933,6 +2949,7 @@ def desk_my_work_list_view(request):
     Voice Over, Copy Editor, Graphic Designer, Visual Editor, and Social Media.
     Shows exactly who each story was sent to, desk notes, and dispatched timestamp.
     """
+    _ensure_copy_editor_columns()
     desk = getattr(request.user, 'desk_profile', None)
     today = timezone.now().date()
     today_str = today.strftime('%Y-%m-%d')
@@ -2954,7 +2971,7 @@ def desk_my_work_list_view(request):
 
     base_sent_qs = News.objects.select_related(
         'reporter', 'author',
-        'assigned_copy_editor', 'assigned_visual_editor',
+        'assigned_copy_editor', 'edited_by_copy_editor', 'assigned_visual_editor',
         'assigned_voice_over', 'assigned_graphic_designer',
         'assigned_social_media'
     ).prefetch_related('additional_media').filter(status='Approved').filter(sent_condition).distinct().order_by('-assigned_at', '-created_at')
@@ -4709,10 +4726,11 @@ def graphic_designer_my_task_view(request):
     Once graphics are ready, clicking 'Send to Visual Editor' moves them to 'My Work List'.
     """
     _ensure_graphic_designer_columns()
+    _ensure_copy_editor_columns()
     designer = request.user.graphic_designer_profile
     all_assigned = News.objects.select_related(
         'reporter', 'author',
-        'assigned_visual_editor', 'assigned_copy_editor',
+        'assigned_visual_editor', 'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer', 'assigned_voice_over'
     ).prefetch_related('additional_media').filter(
         assigned_graphic_designer=designer
@@ -4754,10 +4772,11 @@ def graphic_designer_my_work_list_view(request):
     Displays all stories where graphics have been completed and dispatched to Visual Editor.
     """
     _ensure_graphic_designer_columns()
+    _ensure_copy_editor_columns()
     designer = request.user.graphic_designer_profile
     all_assigned = News.objects.select_related(
         'reporter', 'author',
-        'assigned_visual_editor', 'assigned_copy_editor',
+        'assigned_visual_editor', 'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer', 'assigned_voice_over'
     ).prefetch_related('additional_media').filter(
         assigned_graphic_designer=designer
@@ -5051,7 +5070,7 @@ def graphic_designer_generate_ai_image_view(request):
                 gemini_key = get_api_key('gemini')
                 if gemini_key:
                     translate_prompt = (
-                        "You are an expert news visual designer for an Indian television news channel (Nandilive).\n"
+                        "You are an expert news visual designer for an Indian television news channel (Prameya Digital).\n"
                         "Convert this news headline/prompt into a vivid, realistic English visual scene description "
                         "for generating a high-definition news broadcast photo or graphic asset.\n"
                         "Describe the subjects, their attire, facial expressions, and broadcast studio or event scene realistically.\n"
@@ -5512,7 +5531,7 @@ def generate_story_word_document(news, rep_name, rep_id, rep_phone):
 </head>
 <body>
   <div class="channel-header">
-    <div class="channel-name">NANDILIVE NEWS NETWORK</div>
+    <div class="channel-name">PRAMEYA DIGITAL NEWS NETWORK</div>
     <div class="channel-sub">Verified Editorial &amp; Broadcast Package</div>
   </div>
 
@@ -5559,7 +5578,7 @@ def generate_story_word_document(news, rep_name, rep_id, rep_phone):
   {byte_section}
 
   <div class="footer-note">
-    Generated automatically by Nandilive News Desk Editorial Automation System | Confidential - Broadcast Production
+    Generated automatically by Prameya Digital News Desk Editorial Automation System | Confidential - Broadcast Production
   </div>
 </body>
 </html>"""
@@ -5571,7 +5590,7 @@ def generate_story_text_script(news, rep_name, rep_id, rep_phone):
     """
     submission_time = news.created_at.strftime('%Y-%m-%d %H:%M:%S') if news.created_at else 'N/A'
     return f"""======================================================================
-NANDILIVE NEWS NETWORK - FIELD STORY SCRIPT & DETAILS
+PRAMEYA DIGITAL NEWS NETWORK - FIELD STORY SCRIPT & DETAILS
 ======================================================================
 STORY ID:           NL-STORY-{news.pk:05d}
 HEADLINE:           {news.headline}
@@ -5596,7 +5615,7 @@ BYTE / INTERVIEW DETAILS & SOUNDBITES:
 {news.byte_interview if news.byte_interview else 'No interview byte transcription recorded.'}
 
 ======================================================================
-Generated by Nandilive News Desk Editorial Automation System
+Generated by Prameya Digital News Desk Editorial Automation System
 ======================================================================
 """
 
@@ -5664,11 +5683,39 @@ def copy_approved_media_to_local_archive(news):
         pass
 
 
+def add_file_to_zip(zip_file, field_file, arcname):
+    """
+    Safely writes a Django FieldFile into a zipfile without loading whole file into RAM.
+    Handles both local filesystem paths and remote storages (S3, Cloudinary, etc.).
+    """
+    if not field_file:
+        return False
+    # Method 1: If file exists on local disk, write directly
+    try:
+        if hasattr(field_file, 'path') and os.path.exists(field_file.path):
+            zip_file.write(field_file.path, arcname=arcname)
+            return True
+    except Exception:
+        pass
+
+    # Method 2: Stream directly from storage into zip entry in 1MB chunks (0 RAM overhead)
+    try:
+        with field_file.open('rb') as src:
+            with zip_file.open(arcname, 'w') as dest:
+                shutil.copyfileobj(src, dest, length=1024 * 1024)
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 @login_required
 def news_download_single_media_view(request, pk):
     """
     Downloads COMPLETE news package (News Document .doc + Text Script .txt + Video + Audio + Extras)
     in a single structured ZIP archive.
+    Uses disk-backed TemporaryFile and FileResponse streaming to prevent memory crashes and connection timeouts.
     """
     news = get_object_or_404(News, pk=pk)
 
@@ -5680,9 +5727,22 @@ def news_download_single_media_view(request, pk):
     rep_phone = news.reporter.phone_number if news.reporter else "N/A"
 
     folder_prefix = f"NL_{news.pk:04d}_{clean_slug}"
-    zip_buffer = io.BytesIO()
+    filename = f"NL_{news.pk:04d}_{clean_slug}_Full_News_Package.zip"
 
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+    # 1. Fast path: check if pre-packaged archive exists in approved_local_storage
+    today_str = (news.created_at or timezone.now()).strftime('%Y-%m-%d')
+    local_archive_dir = os.path.join(settings.MEDIA_ROOT, 'approved_local_storage')
+    pre_zip_path = os.path.join(local_archive_dir, f"{folder_prefix}_Full_News_Package.zip")
+    if os.path.exists(pre_zip_path):
+        try:
+            return FileResponse(open(pre_zip_path, 'rb'), as_attachment=True, filename=filename, content_type='application/zip')
+        except Exception:
+            pass
+
+    # 2. Dynamic generation: Use disk-backed TemporaryFile so RAM is never exhausted
+    temp_zip = tempfile.TemporaryFile()
+
+    with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         # 1. Full Word Document (.doc with formatting, header & table)
         doc_content = generate_story_word_document(news, rep_name, rep_id, rep_phone)
         zip_file.writestr(f"{folder_prefix}/01_News_Document_{clean_slug}.doc", doc_content.encode('utf-8'))
@@ -5694,60 +5754,26 @@ def news_download_single_media_view(request, pk):
         # 3. Main Media File (Video / High-Res Image)
         if news.media_file:
             media_prefix = "02_Main_Video" if news.is_video else "02_Main_Image"
-            try:
-                file_path = news.media_file.path
-                if os.path.exists(file_path):
-                    ext = os.path.splitext(file_path)[1]
-                    zip_file.write(file_path, arcname=f"{folder_prefix}/{media_prefix}_{clean_slug}{ext}")
-            except Exception:
-                try:
-                    news.media_file.open('rb')
-                    content = news.media_file.read()
-                    ext = os.path.splitext(news.media_file.name)[1]
-                    zip_file.writestr(f"{folder_prefix}/{media_prefix}_{clean_slug}{ext}", content)
-                except Exception:
-                    pass
+            ext = os.path.splitext(news.media_file.name)[1] or (".mp4" if news.is_video else ".jpg")
+            arcname = f"{folder_prefix}/{media_prefix}_{clean_slug}{ext}"
+            add_file_to_zip(zip_file, news.media_file, arcname)
 
         # 4. Byte Interview Media (Audio / Video)
         if news.byte_media:
-            try:
-                byte_path = news.byte_media.path
-                if os.path.exists(byte_path):
-                    ext = os.path.splitext(byte_path)[1]
-                    zip_file.write(byte_path, arcname=f"{folder_prefix}/03_Byte_Interview_{clean_slug}{ext}")
-            except Exception:
-                try:
-                    news.byte_media.open('rb')
-                    content = news.byte_media.read()
-                    ext = os.path.splitext(news.byte_media.name)[1]
-                    zip_file.writestr(f"{folder_prefix}/03_Byte_Interview_{clean_slug}{ext}", content)
-                except Exception:
-                    pass
+            ext = os.path.splitext(news.byte_media.name)[1] or ".mp3"
+            arcname = f"{folder_prefix}/03_Byte_Interview_{clean_slug}{ext}"
+            add_file_to_zip(zip_file, news.byte_media, arcname)
 
         # 5. Additional Media Files
         for idx, extra in enumerate(news.additional_media.all(), start=1):
             if extra.file:
                 prefix = "04_Extra_Video" if extra.is_video else "04_Extra_Media"
-                try:
-                    file_path = extra.file.path
-                    if os.path.exists(file_path):
-                        ext = os.path.splitext(file_path)[1]
-                        zip_file.write(file_path, arcname=f"{folder_prefix}/{prefix}_{idx}_{clean_slug}{ext}")
-                except Exception:
-                    try:
-                        extra.file.open('rb')
-                        content = extra.file.read()
-                        ext = os.path.splitext(extra.file.name)[1]
-                        zip_file.writestr(f"{folder_prefix}/{prefix}_{idx}_{clean_slug}{ext}", content)
-                    except Exception:
-                        pass
+                ext = os.path.splitext(extra.file.name)[1] or (".mp4" if extra.is_video else ".jpg")
+                arcname = f"{folder_prefix}/{prefix}_{idx}_{clean_slug}{ext}"
+                add_file_to_zip(zip_file, extra.file, arcname)
 
-    zip_buffer.seek(0)
-    zip_bytes = zip_buffer.getvalue()
-    filename = f"NL_{news.pk:04d}_{clean_slug}_Full_News_Package.zip"
-
-    response = HttpResponse(zip_bytes, content_type='application/zip')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    temp_zip.seek(0)
+    response = FileResponse(temp_zip, as_attachment=True, filename=filename, content_type='application/zip')
     return response
 
 
@@ -5909,10 +5935,11 @@ def voice_over_my_task_view(request):
     Voice Over Staff 'My Task' Portal:
     Displays pending stories assigned to this Voice Over artist waiting for voice recording.
     """
+    _ensure_copy_editor_columns()
     vo = request.user.voice_over_profile
     all_tasks = News.objects.select_related(
         'reporter', 'author',
-        'assigned_visual_editor', 'assigned_copy_editor',
+        'assigned_visual_editor', 'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer', 'assigned_voice_over'
     ).prefetch_related('additional_media').filter(
         assigned_voice_over=vo
@@ -5948,10 +5975,11 @@ def voice_over_my_work_list_view(request):
     Voice Over Staff 'My Work List' Portal:
     Displays stories where voice recording was completed, trimmed, and dispatched to Visual Editor.
     """
+    _ensure_copy_editor_columns()
     vo = request.user.voice_over_profile
     all_tasks = News.objects.select_related(
         'reporter', 'author',
-        'assigned_visual_editor', 'assigned_copy_editor',
+        'assigned_visual_editor', 'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer', 'assigned_voice_over'
     ).prefetch_related('additional_media').filter(
         assigned_voice_over=vo
@@ -6238,7 +6266,24 @@ def voice_over_get_chat_messages_api(request, desk_id):
 # Copy Editor Portal Views (Copy Editor Staff Access)
 # ==========================================
 def _ensure_copy_editor_columns():
-    pass
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("PRAGMA table_info(app_news);")
+            cols = [r[1] for r in cursor.fetchall()]
+            if cols:
+                if 'edited_by_copy_editor_id' not in cols:
+                    try:
+                        cursor.execute("ALTER TABLE app_news ADD COLUMN edited_by_copy_editor_id integer NULL REFERENCES app_copyeditor(id);")
+                    except Exception:
+                        pass
+                if 'script_edited_at' not in cols:
+                    try:
+                        cursor.execute("ALTER TABLE app_news ADD COLUMN script_edited_at datetime NULL;")
+                    except Exception:
+                        pass
+    except Exception:
+        pass
 
 
 @copy_editor_required
@@ -6251,7 +6296,7 @@ def copy_editor_dashboard_view(request):
     total_approved = News.objects.filter(status='Approved').count()
     total_news = News.objects.count()
     pending_news = News.objects.filter(status='Submitted').count()
-    my_tasks = News.objects.select_related('reporter', 'author').filter(
+    my_tasks = News.objects.select_related('reporter', 'author', 'edited_by_copy_editor').filter(
         assigned_copy_editor=copy_editor_user
     ).order_by('-assigned_at', '-created_at')
     my_tasks_count = my_tasks.count()
@@ -6285,7 +6330,7 @@ def copy_editor_my_task_view(request):
     ce = request.user.copy_editor_profile
     all_assigned = News.objects.select_related(
         'reporter', 'author',
-        'assigned_visual_editor', 'assigned_copy_editor',
+        'assigned_visual_editor', 'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer', 'assigned_voice_over'
     ).prefetch_related('additional_media').filter(
         assigned_copy_editor=ce
@@ -6329,7 +6374,7 @@ def copy_editor_my_task_list_view(request):
     ce = request.user.copy_editor_profile
     all_assigned = News.objects.select_related(
         'reporter', 'author',
-        'assigned_visual_editor', 'assigned_copy_editor',
+        'assigned_visual_editor', 'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer', 'assigned_voice_over'
     ).prefetch_related('additional_media').filter(
         assigned_copy_editor=ce
@@ -6383,16 +6428,22 @@ def copy_editor_edit_script_view(request, pk):
         ve_notes = request.POST.get('ve_notes', '').strip()
         action_type = request.POST.get('action_type', 'save').strip()
 
-        # Update ONLY the narrative script (and headline if given)
+        # Update narrative script (and headline if given)
         if description:
             news.description = description
         if headline:
             news.headline = headline
 
+        # Mark that copy editor has edited and saved the script
+        news.is_script_edited_by_copy_editor = True
+        news.edited_by_copy_editor = ce
+        news.script_edited_at = timezone.now()
+        if not news.assigned_copy_editor:
+            news.assigned_copy_editor = ce
+
         assigned_ve_name = None
         # Forward to Visual Editor ONLY IF action_type == 'send_ve'
         if action_type == 'send_ve':
-            news.is_script_edited_by_copy_editor = True
             news.sent_to_visual_editor_at = timezone.now()
 
             if visual_editor_id and visual_editor_id.isdigit():
@@ -6407,7 +6458,7 @@ def copy_editor_edit_script_view(request, pk):
                 assigned_ve_name = news.assigned_visual_editor.name
 
             if ve_notes:
-                note_text = f"[Copy Editor Note]: {ve_notes}"
+                note_text = f"[{ce.name} - Copy Editor]: {ve_notes}"
                 if news.desk_notes:
                     news.desk_notes = f"{news.desk_notes}\n{note_text}"
                 else:
@@ -6419,25 +6470,27 @@ def copy_editor_edit_script_view(request, pk):
         if is_ajax:
             if action_type == 'send_ve':
                 ve_display = assigned_ve_name or 'Visual Editor'
-                msg = f'Script polished and story forwarded to {ve_display}! Moved to My Task List.'
+                msg = f'Script polished by {ce.name} and forwarded to {ve_display}! Moved to My Task List.'
             else:
-                msg = 'Script narrative saved successfully!'
+                msg = f'Script saved by {ce.name} successfully!'
             return JsonResponse({
                 'status': 'success',
                 'message': msg,
                 'news_id': news.pk,
                 'headline': news.headline,
                 'description': news.description,
+                'editor_name': ce.name,
+                'is_script_edited': True,
                 'assigned_ve_name': assigned_ve_name,
                 'assigned_ve_id': news.assigned_visual_editor.pk if news.assigned_visual_editor else None,
             })
 
         if action_type == 'send_ve':
             ve_display = assigned_ve_name or 'Visual Editor'
-            messages.success(request, f'Script updated and story forwarded to {ve_display}!')
+            messages.success(request, f'Script updated by {ce.name} and story forwarded to {ve_display}!')
             return redirect('copy_editor_my_task_list')
         else:
-            messages.success(request, 'Story script saved successfully!')
+            messages.success(request, f'Story script saved by {ce.name} successfully!')
             return redirect('copy_editor_my_task')
 
     context = {
@@ -6668,13 +6721,14 @@ def visual_editor_dashboard_view(request):
     """
     Visual Editor Staff Personal Dashboard.
     """
+    _ensure_copy_editor_columns()
     visual_editor_user = request.user.visual_editor_profile
     total_approved = News.objects.filter(status='Approved').count()
     total_news = News.objects.count()
     pending_news = News.objects.filter(status='Submitted').count()
     my_tasks = News.objects.select_related(
         'reporter', 'author',
-        'assigned_copy_editor',
+        'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer',
         'assigned_voice_over',
         'assigned_social_media'
@@ -6704,10 +6758,11 @@ def visual_editor_my_task_view(request):
     Displays all stories assigned to this Visual Editor by Desk.
     Provides direct action button to open Video Studio for trimming and graphics.
     """
+    _ensure_copy_editor_columns()
     ve = request.user.visual_editor_profile
     tasks = News.objects.select_related(
         'reporter', 'author',
-        'assigned_copy_editor',
+        'assigned_copy_editor', 'edited_by_copy_editor',
         'assigned_graphic_designer',
         'assigned_voice_over',
         'assigned_social_media'
@@ -7136,7 +7191,11 @@ def news_detail_view(request, pk):
     Displays Headline, Type, Category, Location, District, Media Player/Image,
     Description, Byte Interview details, and Reporter Info.
     """
-    news = get_object_or_404(News.objects.select_related('reporter', 'author'), pk=pk)
+    _ensure_copy_editor_columns()
+    news = get_object_or_404(News.objects.select_related(
+        'reporter', 'author', 'assigned_copy_editor', 'edited_by_copy_editor',
+        'assigned_visual_editor', 'assigned_voice_over', 'assigned_graphic_designer'
+    ), pk=pk)
 
     if is_reporter_user(request.user):
         reporter_profile = getattr(request.user, 'reporter_profile', None)
@@ -7441,12 +7500,12 @@ def desk_download_approved_news_zip_view(request):
         next_url = request.META.get('HTTP_REFERER') or 'desk_my_word'
         return redirect(next_url)
 
-    zip_buffer = io.BytesIO()
+    temp_zip = tempfile.TemporaryFile()
 
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+    with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         summary_lines = [
             "=" * 72,
-            "NANDILIVE NEWS NETWORK - APPROVED BROADCAST PACKAGE",
+            "PRAMEYA DIGITAL NEWS NETWORK - APPROVED BROADCAST PACKAGE",
             f"Package Date:      {date_label}",
             f"Total Stories:     {len(approved_list)}",
             f"Generated At:      {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -7473,7 +7532,7 @@ def desk_download_approved_news_zip_view(request):
 
             # 1. Story Details Text File
             story_txt = f"""======================================================================
-NANDILIVE NEWS NETWORK - FIELD STORY SCRIPT & DETAILS
+PRAMEYA DIGITAL NEWS NETWORK - FIELD STORY SCRIPT & DETAILS
 ======================================================================
 STORY ID:           NL-STORY-{item.pk:05d}
 HEADLINE:           {item.headline}
@@ -7498,74 +7557,40 @@ BYTE / INTERVIEW DETAILS & SOUNDBITES:
 {item.byte_interview if item.byte_interview else 'No interview byte transcription recorded.'}
 
 ======================================================================
-Generated by Nandilive News Desk Editorial Automation System
+Generated by Prameya Digital News Desk Editorial Automation System
 ======================================================================
 """
             zip_file.writestr(f"{folder_name}/Story_Details_{item.pk}.txt", story_txt.encode('utf-8'))
 
             # 2. Main Media File (Video / High-Res Image)
             if item.media_file:
-                try:
-                    file_path = item.media_file.path
-                    if os.path.exists(file_path):
-                        ext = os.path.splitext(file_path)[1]
-                        media_filename = f"{folder_name}/video_{clean_slug}{ext}" if item.is_video else f"{folder_name}/media_{clean_slug}{ext}"
-                        zip_file.write(file_path, arcname=media_filename)
-                except Exception:
-                    try:
-                        item.media_file.open('rb')
-                        content = item.media_file.read()
-                        ext = os.path.splitext(item.media_file.name)[1]
-                        zip_file.writestr(f"{folder_name}/video_{clean_slug}{ext}", content)
-                    except Exception:
-                        pass
+                ext = os.path.splitext(item.media_file.name)[1] or (".mp4" if item.is_video else ".jpg")
+                media_filename = f"{folder_name}/video_{clean_slug}{ext}" if item.is_video else f"{folder_name}/media_{clean_slug}{ext}"
+                add_file_to_zip(zip_file, item.media_file, media_filename)
 
             # 2b. Additional Media Files
-            for idx, extra in enumerate(item.additional_media.all(), start=2):
+            for a_idx, extra in enumerate(item.additional_media.all(), start=2):
                 if extra.file:
-                    try:
-                        file_path = extra.file.path
-                        if os.path.exists(file_path):
-                            ext = os.path.splitext(file_path)[1]
-                            prefix = "video" if extra.is_video else "media"
-                            media_filename = f"{folder_name}/{prefix}_{clean_slug}_part{idx}{ext}"
-                            zip_file.write(file_path, arcname=media_filename)
-                    except Exception:
-                        try:
-                            extra.file.open('rb')
-                            content = extra.file.read()
-                            ext = os.path.splitext(extra.file.name)[1]
-                            prefix = "video" if extra.is_video else "media"
-                            zip_file.writestr(f"{folder_name}/{prefix}_{clean_slug}_part{idx}{ext}", content)
-                        except Exception:
-                            pass
+                    ext = os.path.splitext(extra.file.name)[1] or (".mp4" if extra.is_video else ".jpg")
+                    prefix = "video" if extra.is_video else "media"
+                    media_filename = f"{folder_name}/{prefix}_{clean_slug}_part{a_idx}{ext}"
+                    add_file_to_zip(zip_file, extra.file, media_filename)
 
             # 3. Byte Interview Media (Audio / Video)
             if item.byte_media:
-                try:
-                    byte_path = item.byte_media.path
-                    if os.path.exists(byte_path):
-                        ext = os.path.splitext(byte_path)[1]
-                        zip_file.write(byte_path, arcname=f"{folder_name}/byte_media_{item.pk}{ext}")
-                except Exception:
-                    try:
-                        item.byte_media.open('rb')
-                        content = item.byte_media.read()
-                        ext = os.path.splitext(item.byte_media.name)[1]
-                        zip_file.writestr(f"{folder_name}/byte_media_{item.pk}{ext}", content)
-                    except Exception:
-                        pass
+                ext = os.path.splitext(item.byte_media.name)[1] or ".mp3"
+                arcname = f"{folder_name}/byte_media_{item.pk}{ext}"
+                add_file_to_zip(zip_file, item.byte_media, arcname)
 
         summary_lines.append("=" * 72)
         summary_lines.append("END OF PACKAGE SUMMARY")
         summary_lines.append("=" * 72)
         zip_file.writestr("00_PACKAGE_SUMMARY.txt", "\n".join(summary_lines).encode('utf-8'))
 
-    zip_buffer.seek(0)
-    filename = f"Nandilive_Approved_News_{date_label}.zip"
+    temp_zip.seek(0)
+    filename = f"Prameya_Digital_Approved_News_{date_label}.zip"
 
-    response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response = FileResponse(temp_zip, as_attachment=True, filename=filename, content_type='application/zip')
     return response
 
 
@@ -7628,7 +7653,7 @@ from django.conf import settings
 
 def validate_media_file_url(file_url, request=None):
     """
-    Validates that file_url belongs to legitimate media paths or internal download routes of Nandilive.
+    Validates that file_url belongs to legitimate media paths or internal download routes of Prameya Digital.
     Blocks arbitrary external URLs (e.g. evil.com), dangerous protocols (javascript:, file:, data:),
     and path traversal attempts (../).
     Returns (is_valid: bool, cleaned_url: str, error_msg: str)
@@ -7673,14 +7698,14 @@ def validate_media_file_url(file_url, request=None):
 
         parsed_host = (parsed.hostname or '').lower()
         if parsed_host not in allowed_hosts and '*' not in getattr(settings, 'ALLOWED_HOSTS', []):
-            return False, '', 'External download URLs are not permitted. Only Nandilive media is authorized.'
+            return False, '', 'External download URLs are not permitted. Only Prameya Digital media is authorized.'
 
         path = parsed.path
     else:
         path = parsed.path
 
     # Ensure path starts with recognized media or download prefixes
-    # Nandilive media files live under /media/, /input/news/, or /desk/news/
+    # Prameya Digital media files live under /media/, /input/news/, or /desk/news/
     media_prefix = getattr(settings, 'MEDIA_URL', '/media/')
     allowed_prefixes = (
         media_prefix,
@@ -8107,6 +8132,327 @@ def admin_download_approvals_view(request):
         'status_filter': status_filter,
     }
     return render(request, 'admin/download_approvals.html', context)
+
+
+# ==========================================
+# 9. Live Broadcast & Field Streaming Views
+# ==========================================
+
+@reporter_required
+@ensure_csrf_cookie
+def reporter_live_view(request):
+    """
+    Field Reporter Mobile Live Broadcast View.
+    Allows field reporters to preview camera, setup live headline,
+    request live broadcast authorization from Social Media Desk,
+    and broadcast live with real-time TV graphics & teleprompter cues.
+    """
+    reporter = request.user.reporter_profile
+    active_session = LiveBroadcastSession.objects.filter(
+        reporter=reporter,
+        status__in=['pending', 'approved', 'live']
+    ).first()
+
+    setting = LiveStreamSetting.objects.first()
+
+    context = {
+        'active_page': 'reporter_live',
+        'reporter': reporter,
+        'active_session': active_session,
+        'setting': setting,
+        'district': reporter.district,
+    }
+    return render(request, 'reporter/live_broadcast.html', context)
+
+
+@login_required
+@ensure_csrf_cookie
+def social_media_live_control_view(request):
+    """
+    Social Media / Editorial Live Broadcast Control Room.
+    Gatekeeps incoming reporter requests, verifies QA preview,
+    routes streams to YouTube/Facebook, triggers Emergency Kill Switch,
+    and sends live cues to on-air reporters.
+    """
+    if not is_live_control_authorized(request.user):
+        return redirect('dashboard')
+
+    setting, _ = LiveStreamSetting.objects.get_or_create(id=1)
+    active_broadcast = LiveBroadcastSession.objects.filter(status='live').select_related('reporter').first()
+    pending_sessions = LiveBroadcastSession.objects.filter(status__in=['pending', 'approved']).select_related('reporter').order_by('-created_at')[:10]
+    recent_sessions = LiveBroadcastSession.objects.filter(status='ended').select_related('reporter').order_by('-ended_at')[:10]
+
+    context = {
+        'active_page': 'social_media_live_control',
+        'setting': setting,
+        'active_broadcast': active_broadcast,
+        'pending_sessions': pending_sessions,
+        'recent_sessions': recent_sessions,
+    }
+    return render(request, 'social_media/live_control_room.html', context)
+
+
+@login_required
+def social_media_live_settings_view(request):
+    """
+    Configure YouTube and Facebook Live Stream RTMP credentials.
+    """
+    if not is_live_control_authorized(request.user):
+        return redirect('dashboard')
+
+    setting, _ = LiveStreamSetting.objects.get_or_create(id=1)
+
+    if request.method == 'POST':
+        setting.youtube_rtmp_url = request.POST.get('youtube_rtmp_url', setting.youtube_rtmp_url).strip()
+        setting.youtube_stream_key = request.POST.get('youtube_stream_key', '').strip()
+        setting.facebook_rtmp_url = request.POST.get('facebook_rtmp_url', setting.facebook_rtmp_url).strip()
+        setting.facebook_stream_key = request.POST.get('facebook_stream_key', '').strip()
+        setting.is_auto_record = request.POST.get('is_auto_record') == 'on'
+        setting.save()
+        messages.success(request, "Live Stream Broadcast credentials updated successfully!")
+        return redirect('social_media_live_control')
+
+    context = {
+        'active_page': 'social_media_live_settings',
+        'setting': setting,
+    }
+    return render(request, 'social_media/live_settings.html', context)
+
+
+# ==========================================
+# Real-time Broadcast APIs
+# ==========================================
+
+@csrf_exempt
+@reporter_required
+def api_reporter_request_live(request):
+    """
+    Reporter initiates a Live Broadcast Request.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    reporter = request.user.reporter_profile
+    headline = request.POST.get('headline', '').strip()
+    district = request.POST.get('district', reporter.district).strip()
+
+    if not headline:
+        headline = f"Ground Zero Live Field Report from {district}"
+
+    # Close any stale session
+    LiveBroadcastSession.objects.filter(reporter=reporter, status__in=['pending', 'approved']).update(status='ended', ended_at=timezone.now())
+
+    session = LiveBroadcastSession.objects.create(
+        reporter=reporter,
+        headline=headline,
+        district=district,
+        status='pending'
+    )
+
+    return JsonResponse({
+        'success': True,
+        'session_id': session.pk,
+        'status': session.status,
+        'headline': session.headline,
+        'message': 'Live broadcast request submitted to Social Media Desk!'
+    })
+
+
+@login_required
+def api_reporter_poll_status(request, session_id):
+    """
+    Reporter mobile interface polls for status changes, destinations, and live cues.
+    """
+    session = get_object_or_404(LiveBroadcastSession, pk=session_id)
+    elapsed = 0
+    if session.started_at:
+        end_time = session.ended_at or timezone.now()
+        elapsed = int((end_time - session.started_at).total_seconds())
+
+    return JsonResponse({
+        'success': True,
+        'session_id': session.pk,
+        'status': session.status,
+        'destination': session.destination,
+        'destination_display': session.get_destination_display(),
+        'current_cue': session.current_cue or '',
+        'elapsed_seconds': elapsed,
+        'headline': session.headline,
+    })
+
+
+@login_required
+def api_social_pending_requests(request):
+    """
+    Social Media Desk polls for pending/live broadcast sessions.
+    """
+    if not is_live_control_authorized(request.user):
+        return JsonResponse({'success': False, 'error': 'Forbidden'}, status=403)
+
+    pending = LiveBroadcastSession.objects.filter(status='pending').select_related('reporter').order_by('-created_at')[:10]
+    active = LiveBroadcastSession.objects.filter(status='live').select_related('reporter').first()
+
+    data_pending = []
+    for s in pending:
+        data_pending.append({
+            'session_id': s.pk,
+            'reporter_name': s.reporter.name,
+            'reporter_phone': s.reporter.phone_number,
+            'reporter_id': s.reporter.reporter_id or '',
+            'district': s.district,
+            'headline': s.headline,
+            'created_at': s.created_at.strftime('%H:%M:%S'),
+        })
+
+    active_data = None
+    if active:
+        elapsed = int((timezone.now() - active.started_at).total_seconds()) if active.started_at else 0
+        active_data = {
+            'session_id': active.pk,
+            'reporter_name': active.reporter.name,
+            'reporter_id': active.reporter.reporter_id or '',
+            'district': active.district,
+            'headline': active.headline,
+            'destination': active.get_destination_display(),
+            'current_cue': active.current_cue or '',
+            'elapsed_seconds': elapsed,
+        }
+
+    return JsonResponse({
+        'success': True,
+        'pending_count': len(data_pending),
+        'pending': data_pending,
+        'pending_requests': data_pending,
+        'active_broadcast': active_data,
+    })
+
+
+@csrf_exempt
+@login_required
+def api_social_approve_live(request):
+    """
+    Social Media Desk approves request and pushes stream Live On-Air.
+    """
+    if not is_live_control_authorized(request.user):
+        return JsonResponse({'success': False, 'error': 'Forbidden'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    session_id = request.POST.get('session_id')
+    destination = request.POST.get('destination', 'youtube')
+    session = get_object_or_404(LiveBroadcastSession, pk=session_id)
+
+    session.status = 'live'
+    session.destination = destination
+    session.approved_by = request.user
+    session.started_at = timezone.now()
+    session.current_cue = "✔ You are LIVE on YouTube / Facebook! Stand by for audio."
+    session.save()
+
+    return JsonResponse({
+        'success': True,
+        'session_id': session.pk,
+        'status': session.status,
+        'destination': session.destination,
+        'message': f"Broadcast is now LIVE on {session.get_destination_display()}!"
+    })
+
+
+@csrf_exempt
+@login_required
+def api_social_send_cue(request):
+    """
+    Social Media Desk sends a real-time teleprompter cue to the on-air reporter.
+    """
+    if not is_live_control_authorized(request.user):
+        return JsonResponse({'success': False, 'error': 'Forbidden'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    session_id = request.POST.get('session_id')
+    cue_text = request.POST.get('cue_text', '').strip()
+    session = get_object_or_404(LiveBroadcastSession, pk=session_id)
+
+    session.current_cue = cue_text
+    session.save(update_fields=['current_cue'])
+
+    return JsonResponse({'success': True, 'cue': cue_text})
+
+
+@csrf_exempt
+@login_required
+def api_social_stop_live(request):
+    """
+    End broadcast or trigger Emergency Kill Switch.
+    """
+    if not is_live_control_authorized(request.user):
+        return JsonResponse({'success': False, 'error': 'Forbidden'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    session_id = request.POST.get('session_id')
+    reason = request.POST.get('reason', 'Normal end').strip()
+    session = get_object_or_404(LiveBroadcastSession, pk=session_id)
+
+    session.status = 'ended'
+    session.ended_at = timezone.now()
+    session.current_cue = f"Broadcast Ended ({reason})"
+    session.save()
+
+    return JsonResponse({
+        'success': True,
+        'session_id': session.pk,
+        'status': session.status,
+        'message': f'Broadcast session ended successfully ({reason}).'
+    })
+
+
+@csrf_exempt
+@login_required
+def api_live_save_recording(request):
+    """
+    Saves the recorded MP4/WebM video of the live broadcast session
+    and automatically registers it in News Media so Editors can extract bytes!
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    session_id = request.POST.get('session_id')
+    video_file = request.FILES.get('video_file')
+
+    if not session_id or not video_file:
+        return JsonResponse({'success': False, 'error': 'session_id and video_file required'}, status=400)
+
+    session = get_object_or_404(LiveBroadcastSession, pk=session_id)
+    session.recorded_file = video_file
+    session.save(update_fields=['recorded_file'])
+
+    # Auto-create News entry if setting is auto_record
+    setting = LiveStreamSetting.objects.first()
+    if setting and setting.is_auto_record:
+        try:
+            News.objects.create(
+                headline=f"[LIVE BROADCAST] {session.headline}",
+                category="State",
+                news_type="PKG",
+                reporter=session.reporter,
+                district=session.district or session.reporter.district,
+                location=session.district or "Ground Zero",
+                description=f"Auto-archived live stream broadcast recorded from field reporter {session.reporter.name} on {session.created_at.strftime('%Y-%m-%d %H:%M')}.",
+                media_file=session.recorded_file,
+                status="Submitted"
+            )
+        except Exception:
+            pass
+
+    return JsonResponse({
+        'success': True,
+        'session_id': session.pk,
+        'message': 'Live broadcast recording saved and archived to Media Library!'
+    })
 
 
 

@@ -1,0 +1,1406 @@
+{% extends "reporter/base_reporter.html" %}
+{% load static %}
+
+{% block title %}Field Live Broadcast Studio — Prameya Digital{% endblock %}
+{% block page_title %}🔴 Live Broadcast Studio{% endblock %}
+
+{% block content %}
+<div class="live-studio-container">
+    {% csrf_token %}
+    <!-- Studio Header & Status Strip -->
+    <div class="studio-topbar">
+        <div class="studio-status-wrap">
+            <span id="liveStatusBadge" class="status-pill status-standby">
+                <span class="pulse-dot"></span>
+                <span id="liveStatusText">STUDIO STANDBY</span>
+            </span>
+            <div id="liveTimerWrap" class="live-timer" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span id="liveTimerText">00:00:00</span>
+            </div>
+            <div id="destinationBadge" class="destination-badge" style="display: none;">
+                <span id="destinationText">YouTube Live</span>
+            </div>
+        </div>
+
+        <div class="studio-reporter-meta">
+            <span class="meta-item"><strong>Reporter:</strong> {{ reporter.name }} ({{ reporter.reporter_id }})</span>
+            <span class="meta-item"><strong>District:</strong> <span class="district-chip">{{ district }}</span></span>
+        </div>
+    </div>
+
+    <!-- Live Teleprompter / Talkback Banner (Hidden until desk sends cue or goes live) -->
+    <div id="prompterBanner" class="prompter-banner" style="display: none;">
+        <div class="prompter-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            DESK TALKBACK:
+        </div>
+        <div id="prompterMessage" class="prompter-text">Stand by for on-air cue...</div>
+    </div>
+
+    <!-- Main Viewport Grid -->
+    <div class="studio-grid">
+        <!-- Video Feed & On-Air Canvas Box -->
+        <div class="viewport-card">
+            <div class="video-container" id="videoContainer">
+                <video id="cameraPreview" autoplay playsinline muted></video>
+                <canvas id="broadcastCanvas" style="display: none;"></canvas>
+
+                <!-- On-Screen TV Graphics Overlay (Visible when Live) -->
+                <div id="tvGraphicsOverlay" class="tv-overlay" style="display: none;">
+                    <!-- Top Channel Bug -->
+                    <div class="overlay-header">
+                        <div class="live-tag">
+                            <span class="live-dot"></span>
+                            <span>LIVE</span>
+                        </div>
+                        <div class="channel-logo-tag">
+                            <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital" class="overlay-logo">
+                        </div>
+                    </div>
+
+                    <!-- Bottom Lower Third Strap -->
+                    <div class="overlay-strap-wrap">
+                        <div class="strap-reporter-badge">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="7" r="4"></circle>
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            </svg>
+                            <span id="strapReporterName">{{ reporter.name }}</span> | <span id="strapDistrict">{{ district }}</span>
+                        </div>
+                        <div class="strap-main-bar">
+                            <div class="strap-flash-tab">BREAKING</div>
+                            <div id="strapHeadline" class="strap-headline-text">Ground Zero Live Field Report</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Permission / Loading Placeholder -->
+                <div id="cameraPlaceholder" class="camera-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8">
+                            <path d="M23 7l-7 5 7 5V7z"></path>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                        </svg>
+                        <p class="mt-2">Camera initializing or permission required</p>
+                        <button type="button" id="btnRequestCamera" class="btn-primary-action btn-sm">
+                            Enable Camera & Mic
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- In-Studio Quick Camera Controls -->
+            <div class="camera-control-bar">
+                <button type="button" id="btnFlipCamera" class="tool-btn" title="Flip Camera">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8h3l-4 5-4-5h3c0-5.523 4.477-10 10-10s10 4.477 10 10z"></path>
+                        <path d="M4 14c0 4.418 3.582 8 8 8s8-3.582 8-8h-3l4-5 4 5h-3c0 5.523-4.477 10-10 10s-10-4.477-10-10z"></path>
+                    </svg>
+                    <span>Flip Lens</span>
+                </button>
+                <button type="button" id="btnMuteAudio" class="tool-btn" title="Toggle Mic">
+                    <svg id="micIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                    <span id="micLabel">Mute</span>
+                </button>
+                <div class="audio-level-indicator" title="Audio Input Level">
+                    <div id="audioMeterBar" class="audio-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Broadcast Control & Dispatch Panel -->
+        <div class="control-card">
+            <!-- Setup Form (Visible during Standby) -->
+            <div id="setupSection" class="panel-section">
+                <h3 class="section-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Live Broadcast Setup
+                </h3>
+                <p class="section-desc">Enter your on-air headline before requesting authorization from Social Media Desk.</p>
+
+                <div class="form-group">
+                    <label for="headlineInput" class="form-label">Live Story Headline (Odisha / English) *</label>
+                    <input type="text" id="headlineInput" class="form-input" 
+                        value="Ground Zero Live Field Coverage from {{ district }}"
+                        placeholder="e.g. Cuttack flood relief live operations update...">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="districtInput" class="form-label">District Location</label>
+                        <input type="text" id="districtInput" class="form-input" value="{{ district }}" readonly>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label">Broadcast Channel</label>
+                        <div class="channel-pill">
+                            <span class="live-badge-sm">Prameya Digital</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="btnRequestLive" class="btn-broadcast-start">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+                    </svg>
+                    <span>🔴 REQUEST LIVE BROADCAST</span>
+                </button>
+            </div>
+
+            <!-- Pending Desk Approval State (Radar Animation) -->
+            <div id="pendingSection" class="panel-section" style="display: none;">
+                <div class="radar-box">
+                    <div class="radar-circle">
+                        <div class="radar-sweep"></div>
+                    </div>
+                    <h4>Request Dispatched to Social Media Desk</h4>
+                    <p class="text-muted">Waiting for Central Desk authorization & channel routing. Keep your camera focused on the field subject.</p>
+                    <div class="pending-info">
+                        <strong>Headline:</strong> <span id="pendingHeadlineText"></span>
+                    </div>
+                    <button type="button" id="btnCancelRequest" class="btn-cancel-request">Cancel Request</button>
+                </div>
+            </div>
+
+            <!-- Active On-Air Broadcast State -->
+            <div id="liveSection" class="panel-section" style="display: none;">
+                <div class="on-air-banner">
+                    <span class="pulse-beacon"></span>
+                    <div>
+                        <div class="beacon-title">YOU ARE ON AIR!</div>
+                        <div class="beacon-sub">Stream is being transmitted to Prameya Digital viewers.</div>
+                    </div>
+                </div>
+
+                <div class="talkback-quick-actions">
+                    <div class="label-heading">Real-Time Desk Instructions:</div>
+                    <div id="activeCueBox" class="cue-box">
+                        "Broadcast in progress. Maintain steady frame."
+                    </div>
+                </div>
+
+                <button type="button" id="btnEndBroadcast" class="btn-broadcast-stop">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+                    </svg>
+                    <span>⏹ END LIVE BROADCAST</span>
+                </button>
+            </div>
+
+            <!-- Broadcast Ended / Archive Upload State -->
+            <div id="archiveSection" class="panel-section" style="display: none;">
+                <div class="archive-box">
+                    <div class="archive-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <h4>Live Broadcast Completed!</h4>
+                    <p id="archiveStatusText" class="text-muted">Saving on-air recording to Newsroom Media Archive for Byte extraction...</p>
+                    <div id="archiveProgressBar" class="progress-bar-wrap">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                    <div class="archive-actions mt-3">
+                        <button type="button" id="btnStartNewLive" class="btn-primary-action">
+                            Start Another Live
+                        </button>
+                        <a href="{% url 'reporter_dashboard' %}" class="btn-secondary-action">
+                            Return to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips for Field Live -->
+            <div class="tips-box">
+                <div class="tips-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>Field Broadcasting Guidelines</span>
+                </div>
+                <ul class="tips-list">
+                    <li>Hold mobile in <strong>Landscape (16:9)</strong> for full broadcast TV aspect.</li>
+                    <li>Ensure 4G/5G signal indicator shows at least 3 bars.</li>
+                    <li>Social Media Desk can push talkback prompts to your screen at any moment.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Modern Broadcast Studio Styles */
+.live-studio-container {
+    max-width: 1380px;
+    margin: 0 auto;
+    padding: 18px 22px;
+}
+
+.studio-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0f172a;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.studio-status-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.status-standby {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.status-pending {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.status-live {
+    background: #dc2626;
+    color: #ffffff;
+    border: 1px solid #ef4444;
+    animation: liveGlow 1.8s infinite;
+}
+
+@keyframes liveGlow {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.pulse-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+}
+
+.live-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.4);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.destination-badge {
+    background: #2563eb;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}
+
+.studio-reporter-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.studio-reporter-meta strong {
+    color: #e2e8f0;
+}
+
+.district-chip {
+    background: rgba(255,255,255,0.12);
+    color: #f8fafc;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* Talkback / Prompter Banner */
+.prompter-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    color: #92400e;
+    padding: 12px 18px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    box-shadow: 0 3px 8px rgba(245, 158, 11, 0.15);
+    animation: promptPulse 2s infinite;
+}
+
+@keyframes promptPulse {
+    0%, 100% { border-color: #f59e0b; }
+    50% { border-color: #d97706; }
+}
+
+.prompter-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+}
+
+.prompter-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: #78350f;
+}
+
+/* Studio Grid */
+.studio-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 992px) {
+    .studio-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Viewport Card */
+.viewport-card {
+    background: #0b0f19;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    border: 1px solid #1e293b;
+    display: flex;
+    flex-direction: column;
+}
+
+.video-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#cameraPreview, #broadcastCanvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.camera-placeholder {
+    position: absolute;
+    inset: 0;
+    background: #0b0f19;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    text-align: center;
+    padding: 20px;
+}
+
+.placeholder-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+/* TV Graphics Overlay */
+.tv-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px;
+}
+
+.overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.live-tag {
+    background: #dc2626;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    animation: blinkDot 1s infinite;
+}
+
+@keyframes blinkDot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+.channel-logo-tag {
+    background: rgba(11, 15, 25, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 6px 14px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+.overlay-logo {
+    height: 28px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.overlay-strap-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.strap-reporter-badge {
+    background: rgba(11, 15, 25, 0.94);
+    color: #f1f5f9;
+    border-left: 4px solid #f59e0b;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    align-self: flex-start;
+    border-radius: 0 6px 6px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.strap-main-bar {
+    display: flex;
+    align-items: stretch;
+    background: linear-gradient(90deg, #dc2626 0%, #991b1b 15%, #0f172a 75%);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.strap-flash-tab {
+    background: #e11d48;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.strap-headline-text {
+    flex: 1;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* In-Studio Camera Controls Bar */
+.camera-control-bar {
+    background: #0f172a;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-top: 1px solid #1e293b;
+}
+
+.tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tool-btn:hover {
+    background: #334155;
+    color: #fff;
+}
+
+.tool-btn.active {
+    background: #dc2626;
+    border-color: #ef4444;
+    color: #fff;
+}
+
+.audio-level-indicator {
+    flex: 1;
+    height: 8px;
+    background: #1e293b;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #334155;
+}
+
+.audio-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #10b981 0%, #f59e0b 70%, #ef4444 100%);
+    transition: width 0.1s ease;
+}
+
+/* Control Card */
+.control-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.panel-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.section-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-desc {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: -8px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.flex-1 { flex: 1; }
+
+.form-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.channel-pill {
+    padding: 10px 14px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.live-badge-sm {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 13px;
+}
+
+.btn-broadcast-start {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: #ffffff;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+    transition: all 0.2s ease;
+}
+
+.btn-broadcast-start:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.45);
+}
+
+.btn-broadcast-stop {
+    background: #0f172a;
+    color: #ffffff;
+    border: 2px solid #ef4444;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
+}
+
+.btn-broadcast-stop:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+/* Radar Animation for Pending Request */
+.radar-box {
+    text-align: center;
+    padding: 24px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.radar-circle {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    border: 2px solid #38bdf8;
+    background: rgba(56, 189, 248, 0.05);
+    overflow: hidden;
+}
+
+.radar-sweep {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(56, 189, 248, 0.6) 0deg, transparent 90deg);
+    animation: radarSpin 2s linear infinite;
+}
+
+@keyframes radarSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.radar-box h4 {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 6px;
+}
+
+.pending-info {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #334155;
+    text-align: left;
+}
+
+.btn-cancel-request {
+    margin-top: 14px;
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-cancel-request:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+
+/* Active On-Air Controls */
+.on-air-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 14px 18px;
+    border-radius: 10px;
+}
+
+.pulse-beacon {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #dc2626;
+    animation: liveGlow 1.4s infinite;
+}
+
+.beacon-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: #991b1b;
+}
+
+.beacon-sub {
+    font-size: 12px;
+    color: #7f1d1d;
+}
+
+.talkback-quick-actions {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 14px;
+    border-radius: 10px;
+}
+
+.label-heading {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.cue-box {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #0284c7;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* Tips Box */
+.tips-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.tips-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.tips-list {
+    margin-left: 18px;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* Archive Box */
+.archive-box {
+    text-align: center;
+    padding: 24px 16px;
+}
+
+.archive-icon {
+    margin-bottom: 12px;
+}
+
+.progress-bar-wrap {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 14px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: #16a34a;
+    animation: barStripes 1s linear infinite;
+}
+
+.btn-primary-action {
+    background: #0284c7;
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-secondary-action {
+    background: #e2e8f0;
+    color: #0f172a;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    margin-left: 8px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    // CSRF Token Helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // DOM Elements
+    const cameraPreview = document.getElementById('cameraPreview');
+    const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+    const btnRequestCamera = document.getElementById('btnRequestCamera');
+    const btnFlipCamera = document.getElementById('btnFlipCamera');
+    const btnMuteAudio = document.getElementById('btnMuteAudio');
+    const micLabel = document.getElementById('micLabel');
+    const audioMeterBar = document.getElementById('audioMeterBar');
+
+    const setupSection = document.getElementById('setupSection');
+    const pendingSection = document.getElementById('pendingSection');
+    const liveSection = document.getElementById('liveSection');
+    const archiveSection = document.getElementById('archiveSection');
+
+    const headlineInput = document.getElementById('headlineInput');
+    const districtInput = document.getElementById('districtInput');
+    const btnRequestLive = document.getElementById('btnRequestLive');
+    const btnCancelRequest = document.getElementById('btnCancelRequest');
+    const btnEndBroadcast = document.getElementById('btnEndBroadcast');
+    const btnStartNewLive = document.getElementById('btnStartNewLive');
+
+    const liveStatusBadge = document.getElementById('liveStatusBadge');
+    const liveStatusText = document.getElementById('liveStatusText');
+    const liveTimerWrap = document.getElementById('liveTimerWrap');
+    const liveTimerText = document.getElementById('liveTimerText');
+    const destinationBadge = document.getElementById('destinationBadge');
+    const destinationText = document.getElementById('destinationText');
+    const prompterBanner = document.getElementById('prompterBanner');
+    const prompterMessage = document.getElementById('prompterMessage');
+    const tvGraphicsOverlay = document.getElementById('tvGraphicsOverlay');
+    const strapHeadline = document.getElementById('strapHeadline');
+    const pendingHeadlineText = document.getElementById('pendingHeadlineText');
+    const activeCueBox = document.getElementById('activeCueBox');
+
+    // State Variables
+    let mediaStream = null;
+    let audioContext = null;
+    let analyser = null;
+    let currentFacingMode = 'user'; // 'user' or 'environment'
+    let isMuted = false;
+    let activeSessionId = {{ active_session.id|default:"null" }};
+    let sessionStatus = '{{ active_session.status|default:"standby" }}';
+    let pollInterval = null;
+    let timerInterval = null;
+    let broadcastStartTime = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    // Initialize Camera Stream
+    async function startCamera(facing = 'user') {
+        try {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(t => t.stop());
+            }
+
+            const constraints = {
+                video: {
+                    facingMode: facing,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: true
+            };
+
+            mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            cameraPreview.srcObject = mediaStream;
+            cameraPlaceholder.style.display = 'none';
+
+            // Audio Visualizer
+            setupAudioMeter(mediaStream);
+
+            return true;
+        } catch (err) {
+            console.warn('Camera access failed:', err);
+            cameraPlaceholder.style.display = 'flex';
+            return false;
+        }
+    }
+
+    // Audio Visualizer Meter
+    function setupAudioMeter(stream) {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            if (audioContext) audioContext.close();
+            audioContext = new AudioContext();
+            analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 64;
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            function updateMeter() {
+                if (!mediaStream) return;
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    sum += dataArray[i];
+                }
+                const avg = sum / dataArray.length;
+                const pct = Math.min(100, Math.round((avg / 128) * 100));
+                if (audioMeterBar) {
+                    audioMeterBar.style.width = pct + '%';
+                }
+                requestAnimationFrame(updateMeter);
+            }
+            updateMeter();
+        } catch (e) {
+            console.log('Audio meter setup skipped:', e);
+        }
+    }
+
+    // Toggle Camera Flip
+    if (btnFlipCamera) {
+        btnFlipCamera.addEventListener('click', async () => {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            await startCamera(currentFacingMode);
+        });
+    }
+
+    // Toggle Mic Mute
+    if (btnMuteAudio) {
+        btnMuteAudio.addEventListener('click', () => {
+            if (!mediaStream) return;
+            isMuted = !isMuted;
+            mediaStream.getAudioTracks().forEach(track => {
+                track.enabled = !isMuted;
+            });
+            btnMuteAudio.classList.toggle('active', isMuted);
+            micLabel.textContent = isMuted ? 'Unmute' : 'Mute';
+        });
+    }
+
+    if (btnRequestCamera) {
+        btnRequestCamera.addEventListener('click', () => startCamera(currentFacingMode));
+    }
+
+    // Request Live Broadcast
+    btnRequestLive.addEventListener('click', async () => {
+        const headline = headlineInput.value.trim();
+        const district = districtInput.value.trim();
+
+        if (!headline) {
+            alert('Please enter a live story headline.');
+            return;
+        }
+
+        btnRequestLive.disabled = true;
+        btnRequestLive.innerHTML = 'Sending Request...';
+
+        const formData = new FormData();
+        formData.append('headline', headline);
+        formData.append('district', district);
+
+        try {
+            const res = await fetch('/api/live/request/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                activeSessionId = data.session_id;
+                pendingHeadlineText.textContent = headline;
+                strapHeadline.textContent = headline;
+                transitionToPending();
+                startPolling();
+            } else {
+                alert('Request failed: ' + (data.error || 'Unknown error'));
+                btnRequestLive.disabled = false;
+                btnRequestLive.innerHTML = '🔴 REQUEST LIVE BROADCAST';
+            }
+        } catch (err) {
+            alert('Network error while requesting live broadcast.');
+            btnRequestLive.disabled = false;
+            btnRequestLive.innerHTML = '🔴 REQUEST LIVE BROADCAST';
+        }
+    });
+
+    // Cancel Request
+    btnCancelRequest.addEventListener('click', () => {
+        stopPolling();
+        transitionToStandby();
+    });
+
+    // End Live Broadcast
+    btnEndBroadcast.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to stop the live broadcast?')) return;
+        await stopLiveSession('Reporter ended session');
+    });
+
+    // Start New Live Session
+    btnStartNewLive.addEventListener('click', () => {
+        transitionToStandby();
+    });
+
+    // State Transitions
+    function transitionToStandby() {
+        sessionStatus = 'standby';
+        setupSection.style.display = 'flex';
+        pendingSection.style.display = 'none';
+        liveSection.style.display = 'none';
+        archiveSection.style.display = 'none';
+
+        liveStatusBadge.className = 'status-pill status-standby';
+        liveStatusText.textContent = 'STUDIO STANDBY';
+        liveTimerWrap.style.display = 'none';
+        destinationBadge.style.display = 'none';
+        prompterBanner.style.display = 'none';
+        tvGraphicsOverlay.style.display = 'none';
+
+        btnRequestLive.disabled = false;
+        btnRequestLive.innerHTML = '🔴 REQUEST LIVE BROADCAST';
+        clearInterval(timerInterval);
+    }
+
+    function transitionToPending() {
+        sessionStatus = 'pending';
+        setupSection.style.display = 'none';
+        pendingSection.style.display = 'block';
+        liveSection.style.display = 'none';
+        archiveSection.style.display = 'none';
+
+        liveStatusBadge.className = 'status-pill status-pending';
+        liveStatusText.textContent = 'AWAITING APPROVAL';
+    }
+
+    function transitionToLive(destinationDisplay, startedAtIso) {
+        sessionStatus = 'live';
+        setupSection.style.display = 'none';
+        pendingSection.style.display = 'none';
+        liveSection.style.display = 'block';
+        archiveSection.style.display = 'none';
+
+        liveStatusBadge.className = 'status-pill status-live';
+        liveStatusText.textContent = '🔴 ON AIR';
+
+        liveTimerWrap.style.display = 'inline-flex';
+        destinationBadge.style.display = 'inline-block';
+        destinationText.textContent = destinationDisplay || 'YouTube Live';
+
+        tvGraphicsOverlay.style.display = 'flex';
+        prompterBanner.style.display = 'flex';
+
+        // Start Live Timer
+        broadcastStartTime = startedAtIso ? new Date(startedAtIso) : new Date();
+        clearInterval(timerInterval);
+        timerInterval = setInterval(updateLiveTimer, 1000);
+        updateLiveTimer();
+
+        // Start local MediaRecorder to archive
+        startRecording();
+    }
+
+    function transitionToArchive() {
+        sessionStatus = 'ended';
+        setupSection.style.display = 'none';
+        pendingSection.style.display = 'none';
+        liveSection.style.display = 'none';
+        archiveSection.style.display = 'block';
+
+        liveStatusBadge.className = 'status-pill status-standby';
+        liveStatusText.textContent = 'BROADCAST ENDED';
+        liveTimerWrap.style.display = 'none';
+        tvGraphicsOverlay.style.display = 'none';
+        prompterBanner.style.display = 'none';
+        clearInterval(timerInterval);
+    }
+
+    // Polling Logic
+    function startPolling() {
+        stopPolling();
+        pollInterval = setInterval(checkSessionStatus, 1500);
+    }
+
+    function stopPolling() {
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = null;
+    }
+
+    async function checkSessionStatus() {
+        if (!activeSessionId) return;
+
+        try {
+            const res = await fetch(`/api/live/status/${activeSessionId}/`);
+            const data = await res.json();
+
+            if (data.success) {
+                if (data.status === 'live' && sessionStatus !== 'live') {
+                    transitionToLive(data.destination_display, data.started_at);
+                } else if (data.status === 'ended' && sessionStatus === 'live') {
+                    stopPolling();
+                    stopRecordingAndSave();
+                }
+
+                // Update Talkback Prompter if changed
+                if (data.current_cue) {
+                    prompterMessage.textContent = data.current_cue;
+                    activeCueBox.textContent = `"${data.current_cue}"`;
+                    prompterBanner.style.display = 'flex';
+                }
+            }
+        } catch (e) {
+            console.warn('Poll error:', e);
+        }
+    }
+
+    // Live Timer Counter
+    function updateLiveTimer() {
+        if (!broadcastStartTime) return;
+        const now = new Date();
+        const diff = Math.floor((now - broadcastStartTime) / 1000);
+        const hrs = String(Math.floor(diff / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+        const secs = String(diff % 60).padStart(2, '0');
+        liveTimerText.textContent = `${hrs}:${mins}:${secs}`;
+    }
+
+    // Stop Session API
+    async function stopLiveSession(reason) {
+        stopPolling();
+        if (activeSessionId) {
+            const formData = new FormData();
+            formData.append('session_id', activeSessionId);
+            formData.append('reason', reason);
+
+            try {
+                await fetch('/api/live/stop/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken },
+                    body: formData
+                });
+            } catch (e) {
+                console.warn('Stop session call failed:', e);
+            }
+        }
+        stopRecordingAndSave();
+    }
+
+    // MediaRecorder & Archiving
+    function startRecording() {
+        if (!mediaStream) return;
+        recordedChunks = [];
+        try {
+            const options = { mimeType: 'video/webm;codecs=vp8,opus' };
+            mediaRecorder = new MediaRecorder(mediaStream, options);
+        } catch (e) {
+            try {
+                mediaRecorder = new MediaRecorder(mediaStream);
+            } catch (err) {
+                console.warn('MediaRecorder unsupported:', err);
+                return;
+            }
+        }
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+        mediaRecorder.start(1000);
+    }
+
+    function stopRecordingAndSave() {
+        transitionToArchive();
+
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.onstop = uploadRecording;
+            mediaRecorder.stop();
+        } else if (recordedChunks.length > 0) {
+            uploadRecording();
+        } else {
+            const archiveStatus = document.getElementById('archiveStatusText');
+            if (archiveStatus) {
+                archiveStatus.textContent = 'Broadcast completed. Recording was not captured.';
+            }
+        }
+    }
+
+    async function uploadRecording() {
+        if (!recordedChunks.length || !activeSessionId) return;
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const formData = new FormData();
+        formData.append('session_id', activeSessionId);
+        formData.append('video_file', blob, `live_broadcast_${activeSessionId}.webm`);
+
+        const archiveStatus = document.getElementById('archiveStatusText');
+        if (archiveStatus) {
+            archiveStatus.textContent = 'Uploading broadcast recording to Prameya Digital Newsroom...';
+        }
+
+        try {
+            const res = await fetch('/api/live/save-recording/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success && archiveStatus) {
+                archiveStatus.innerHTML = '✅ Video successfully archived! News item <strong>#' + data.news_id + '</strong> created for Visual Desk byte editing.';
+            }
+        } catch (err) {
+            if (archiveStatus) {
+                archiveStatus.textContent = 'Warning: Archive upload interrupted. Broadcast session ended.';
+            }
+        }
+    }
+
+    // Bootstrap
+    window.addEventListener('DOMContentLoaded', () => {
+        startCamera(currentFacingMode);
+
+        if (activeSessionId) {
+            if (sessionStatus === 'pending') {
+                transitionToPending();
+                startPolling();
+            } else if (sessionStatus === 'live') {
+                transitionToLive('{{ active_session.get_destination_display }}', '{{ active_session.started_at|date:"c" }}');
+                startPolling();
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}
+

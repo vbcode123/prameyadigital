@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Reporter - {{ reporter.name }} - Nandilive Admin{% endblock %}
+{% block title %}Edit Reporter - {{ reporter.name }} - Prameya Digital Admin{% endblock %}
 {% block page_title %}Edit Reporter Details{% endblock %}
 
 {% block extra_head %}
@@ -199,7 +199,7 @@
                             name="reporter_id" 
                             class="form-control {% if errors.reporter_id %}is-invalid{% endif %}" 
                             value="{{ reporter.reporter_id|default:'' }}" 
-                            placeholder="e.g. NL_1001"
+                            placeholder="e.g. PD_1001"
                             style="font-family: monospace; font-weight: 700; font-size: 15px; color: #0369a1; background-color: #f8fafc; padding-left: 38px;"
                             required
                         >

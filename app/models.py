@@ -4,10 +4,12 @@ from django.contrib.auth.models import User
 
 def generate_next_reporter_id():
     """
-    Generates the next unique Reporter ID in the format NL_<number>,
-    starting at NL_1001 or incrementing from the highest existing NL_ number.
+    Generates the next unique Reporter ID in the format PD_<number>,
+    starting at PD_1001 or incrementing from the highest existing PD_ or NL_ number.
     """
-    reporters = Reporter.objects.filter(reporter_id__startswith='NL_')
+    reporters = Reporter.objects.filter(
+        models.Q(reporter_id__startswith='PD_') | models.Q(reporter_id__startswith='NL_')
+    )
     max_num = 1000
     for r in reporters:
         if r.reporter_id:
@@ -16,7 +18,7 @@ def generate_next_reporter_id():
                 val = int(suffix)
                 if val > max_num:
                     max_num = val
-    return f"NL_{max_num + 1}"
+    return f"PD_{max_num + 1}"
 
 
 _ACTIVE_PRESENCE_CACHE = {
@@ -193,7 +195,7 @@ class Reporter(OnlineStatusMixin, models.Model):
         blank=True, 
         null=True, 
         db_index=True, 
-        help_text="Official Reporter ID (e.g. NL_1001)"
+        help_text="Official Reporter ID (e.g. PD_1001)"
     )
     name = models.CharField(max_length=150, help_text="Full Name of the Reporter")
     phone_number = models.CharField(max_length=20, unique=True, help_text="Login Phone Number")
@@ -402,7 +404,9 @@ class News(models.Model):
 
     # Team Assignment fields
     assigned_copy_editor = models.ForeignKey(CopyEditor, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_news')
-    is_script_edited_by_copy_editor = models.BooleanField(default=False, help_text="True if Copy Editor has edited and forwarded script to Visual Editor")
+    edited_by_copy_editor = models.ForeignKey(CopyEditor, on_delete=models.SET_NULL, null=True, blank=True, related_name='script_edited_news', help_text="Copy Editor who edited and saved the script")
+    is_script_edited_by_copy_editor = models.BooleanField(default=False, help_text="True if Copy Editor has edited and saved/forwarded script")
+    script_edited_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when Copy Editor saved script")
     sent_to_visual_editor_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when Copy Editor forwarded script to Visual Editor")
     assigned_visual_editor = models.ForeignKey(VisualEditor, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_news')
     assigned_voice_over = models.ForeignKey(VoiceOverUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_news')
@@ -727,6 +731,71 @@ class MediaDownloadRequest(models.Model):
 
     def __str__(self):
         return f"[{self.passcode}] {self.requester_name} ({self.role_name}) - {self.file_name[:25]} ({self.status_label()})"
+
+
+# ==========================================
+# Live Streaming & Broadcast Models
+# ==========================================
+class LiveStreamSetting(models.Model):
+    """
+    Channel-wide Live Streaming Settings (YouTube & Facebook RTMP credentials)
+    """
+    youtube_rtmp_url = models.CharField(max_length=255, default='rtmp://a.rtmp.youtube.com/live2', help_text="YouTube RTMP Server URL")
+    youtube_stream_key = models.CharField(max_length=255, blank=True, null=True, help_text="YouTube Live Stream Key")
+    facebook_rtmp_url = models.CharField(max_length=255, default='rtmps://live-api-s.facebook.com:443/rtmp/', help_text="Facebook Live RTMP URL")
+    facebook_stream_key = models.CharField(max_length=255, blank=True, null=True, help_text="Facebook Live Stream Key")
+    is_auto_record = models.BooleanField(default=True, help_text="Auto-save live stream to media library on finish")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Live Stream Setting"
+        verbose_name_plural = "Live Stream Settings"
+
+    def __str__(self):
+        yt_status = "Configured" if self.youtube_stream_key else "Missing Key"
+        fb_status = "Configured" if self.facebook_stream_key else "Missing Key"
+        return f"Live Settings (YT: {yt_status}, FB: {fb_status})"
+
+
+class LiveBroadcastSession(models.Model):
+    """
+    Field Reporter Live Broadcast Session with Social Media Gatekeeping
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved / Standby'),
+        ('live', 'Live On Air'),
+        ('ended', 'Broadcast Ended'),
+        ('rejected', 'Rejected / Cancelled'),
+    ]
+
+    DESTINATION_CHOICES = [
+        ('youtube', 'YouTube Live'),
+        ('facebook', 'Facebook Live'),
+        ('both', 'YouTube & Facebook'),
+        ('internal', 'Internal Preview Only'),
+    ]
+
+    reporter = models.ForeignKey(Reporter, on_delete=models.CASCADE, related_name='live_sessions')
+    headline = models.CharField(max_length=255, help_text="Live Story Headline / Topic")
+    district = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    destination = models.CharField(max_length=20, choices=DESTINATION_CHOICES, default='youtube')
+    current_cue = models.CharField(max_length=255, blank=True, null=True, help_text="Live prompter cue from Social Media Desk")
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_broadcasts')
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    recorded_file = models.FileField(upload_to='live_recordings/', blank=True, null=True, help_text="Saved MP4 recording")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Live Broadcast Session"
+        verbose_name_plural = "Live Broadcast Sessions"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.get_status_display()}] {self.reporter.name} ({self.district}) - {self.headline[:30]}"
+
 
 
 

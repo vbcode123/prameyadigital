@@ -1,7 +1,7 @@
 {% extends "desk/base_desk.html" %}
 {% load static %}
 
-{% block title %}My Work List - Dispatched News Stories - Nandilive{% endblock %}
+{% block title %}My Work List - Dispatched News Stories - Prameya Digital{% endblock %}
 {% block page_title %}My Work List — Dispatched &amp; Assigned Stories{% endblock %}
 
 {% block extra_head %}
@@ -771,7 +771,7 @@
                     <td>
                         {% if item.has_edited_video %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ item.edited_video.url }}', '{{ item.headline|escapejs }} [Final Broadcast Video]')" title="Click to preview Final Broadcast Video" style="border: 2px solid #6366f1;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
                                 <div class="media-play-icon" style="background: #4f46e5;">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -780,7 +780,7 @@
                             </div>
                         {% elif item.media_file %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ item.media_file.url }}', '{{ item.headline|escapejs }}')" title="Click to preview video">
-                                <img src="{% static 'images/nandi.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
                                 <div class="media-play-icon">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -789,7 +789,7 @@
                             </div>
                         {% else %}
                             <div class="media-thumb-box" style="cursor: default;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 6px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 6px;">
                             </div>
                         {% endif %}
                     </td>
@@ -842,9 +842,13 @@
                             <!-- Copy Editor -->
                             <div class="team-dispatch-row">
                                 <span class="team-role-tag role-ce">✍️ Copy Editor</span>
-                                {% if item.assigned_copy_editor %}
-                                    <span class="team-person-name" title="{{ item.assigned_copy_editor.name }} ({{ item.assigned_copy_editor.phone_number }})">
-                                        {{ item.assigned_copy_editor.name }}
+                                {% if item.edited_by_copy_editor %}
+                                    <span class="team-person-name" style="color: #15803d; font-weight: 700;" title="Script Edited &amp; Saved by {{ item.edited_by_copy_editor.name }} ({{ item.edited_by_copy_editor.phone_number }})">
+                                        {{ item.edited_by_copy_editor.name }} <span style="font-size: 10px; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 800;">✓</span>
+                                    </span>
+                                {% elif item.assigned_copy_editor %}
+                                    <span class="team-person-name" {% if item.is_script_edited_by_copy_editor %}style="color: #15803d; font-weight: 700;"{% endif %} title="{{ item.assigned_copy_editor.name }} ({{ item.assigned_copy_editor.phone_number }})">
+                                        {{ item.assigned_copy_editor.name }}{% if item.is_script_edited_by_copy_editor %} <span style="font-size: 10px; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 800;">✓</span>{% endif %}
                                     </span>
                                 {% else %}
                                     <span class="team-not-assigned">—</span>

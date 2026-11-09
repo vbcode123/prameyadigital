@@ -1,6 +1,10 @@
 from django.contrib import admin
 from .models import Reporter, Desk, SocialMedia, GraphicDesigner, InputUser, VoiceOverUser, CopyEditor, VisualEditor, News, NewsMedia
 
+admin.site.site_header = "Prameya Digital Administration"
+admin.site.site_title = "Prameya Digital Portal"
+admin.site.index_title = "Welcome to Prameya Digital Newsroom"
+
 
 class NewsMediaInline(admin.TabularInline):
     model = NewsMedia
@@ -87,7 +91,19 @@ class NewsMediaAdmin(admin.ModelAdmin):
     search_fields = ('news__headline', 'caption')
 
 
-from .models import DeskSocialChatMessage
+from .models import DeskSocialChatMessage, LiveStreamSetting, LiveBroadcastSession
+
+
+@admin.register(LiveStreamSetting)
+class LiveStreamSettingAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'youtube_rtmp_url', 'is_auto_record', 'updated_at')
+
+
+@admin.register(LiveBroadcastSession)
+class LiveBroadcastSessionAdmin(admin.ModelAdmin):
+    list_display = ('reporter', 'headline', 'district', 'status', 'destination', 'started_at', 'created_at')
+    list_filter = ('status', 'destination', 'created_at')
+    search_fields = ('reporter__name', 'headline', 'district')
 
 
 @admin.register(DeskSocialChatMessage)

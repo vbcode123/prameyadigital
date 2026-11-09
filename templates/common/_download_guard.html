@@ -565,15 +565,13 @@
             a.href = url;
             a.setAttribute('data-guard-bypass', 'true');
             if (filename) a.setAttribute('download', filename);
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
             a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
             setTimeout(() => {
                 a.remove();
                 window._GUARD_BYPASS_FLAG = false;
-            }, 1500);
+            }, 2500);
         } catch (err) {
             window._GUARD_BYPASS_FLAG = false;
             window.location.href = url;

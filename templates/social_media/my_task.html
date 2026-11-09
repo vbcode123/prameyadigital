@@ -1,7 +1,7 @@
 {% extends "social_media/base_social_media.html" %}
 {% load static %}
 
-{% block title %}My Tasks - Social Media Desk - Nandilive{% endblock %}
+{% block title %}My Tasks - Social Media Desk - Prameya Digital{% endblock %}
 {% block page_title %}My Assigned Tasks — Social Media Distribution{% endblock %}
 
 {% block extra_head %}
@@ -540,7 +540,7 @@
                     <td>
                         {% if task.edited_video %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ task.edited_video.url }}', '{{ task.headline|escapejs }} [Final Broadcast Video]')" title="Click to preview Final Broadcast Video" style="border-color: #6366f1;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Final Video" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Final Video" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
                                 <div class="media-play-icon" style="background: #4f46e5;">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -550,7 +550,7 @@
                             </div>
                         {% elif task.media_file %}
                             <div class="media-thumb-box" onclick="previewMedia('{{ task.media_file.url }}', '{{ task.headline|escapejs }} [Raw Footage]')" title="Click to preview video">
-                                <img src="{% static 'images/nandi.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Thumb" class="media-thumb-img" style="object-fit: contain; padding: 4px; background: #06181b;">
                                 <div class="media-play-icon">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -560,7 +560,7 @@
                             </div>
                         {% else %}
                             <div class="media-thumb-box" style="background-color: #06181b; cursor: default;">
-                                <img src="{% static 'images/nandi.png' %}" alt="Nandi" class="media-thumb-img" style="object-fit: contain; padding: 6px;">
+                                <img src="{% static 'images/prameya.png' %}" alt="Nandi" class="media-thumb-img" style="object-fit: contain; padding: 6px;">
                             </div>
                         {% endif %}
                     </td>

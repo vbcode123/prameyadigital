@@ -1,7 +1,7 @@
 {% extends "copy_editor/base_copy_editor.html" %}
 {% load static %}
 
-{% block title %}Edit Script - {{ news.headline|truncatechars:35 }} - Nandilive{% endblock %}
+{% block title %}Edit Script - {{ news.headline|truncatechars:35 }} - Prameya Digital{% endblock %}
 {% block page_title %}Edit Script &amp; Send to Visual Editor{% endblock %}
 
 {% block extra_head %}
@@ -268,14 +268,24 @@
             </div>
         </div>
 
-        {% if news.assigned_visual_editor %}
-        <div style="text-align: right;">
-            <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; display: block;">Current Visual Editor</span>
-            <span class="badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 12px; font-weight: 700; padding: 4px 10px;">
-                🎬 {{ news.assigned_visual_editor.name }}
-            </span>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            {% if news.is_script_edited_by_copy_editor %}
+            <div style="text-align: right;">
+                <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #15803d; display: block;">Last Edited By</span>
+                <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-size: 12px; font-weight: 700; padding: 4px 10px;">
+                    ✍️ {{ news.edited_by_copy_editor.name|default:news.assigned_copy_editor.name|default:copy_editor_user.name }}
+                </span>
+            </div>
+            {% endif %}
+            {% if news.assigned_visual_editor %}
+            <div style="text-align: right;">
+                <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; display: block;">Current Visual Editor</span>
+                <span class="badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 12px; font-weight: 700; padding: 4px 10px;">
+                    🎬 {{ news.assigned_visual_editor.name }}
+                </span>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 
     <!-- Main Edit Form -->

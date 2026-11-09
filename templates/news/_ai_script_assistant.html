@@ -1,5 +1,5 @@
 <!-- ============================================================
-     AI News Script Assistant Component (Nandilive)
+     AI News Script Assistant Component (Prameya Digital)
      Provides: AI Grammar & Spelling Check, TV News Script Formatting,
      Preview Card, One-Click Apply, and Undo Functionality.
 ============================================================ -->
@@ -762,7 +762,7 @@
         </div>
         <div class="ai-modal-body">
             <p style="font-size: 13px; color: #475569; margin: 0 0 14px 0; line-height: 1.5;">
-                Nandilive AI Assistant supports <strong>Google Gemini</strong> (Free tier available), <strong>OpenAI</strong>, and an offline broadcast formatter.
+                Prameya Digital AI Assistant supports <strong>Google Gemini</strong> (Free tier available), <strong>OpenAI</strong>, and an offline broadcast formatter.
             </p>
             
             <label style="display: block; font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">
@@ -800,7 +800,7 @@
         }
 
         // Load saved client API key if any
-        const savedKey = localStorage.getItem('nandilive_ai_key');
+        const savedKey = localStorage.getItem('prameya_ai_key') || localStorage.getItem('nandilive_ai_key');
         const keyInput = document.getElementById('userGeminiKeyInput');
         if (savedKey && keyInput) {
             keyInput.value = savedKey;
@@ -857,7 +857,7 @@
         const newsTypeElem = document.getElementById('news_type');
         const headline = headlineElem ? headlineElem.value.trim() : '';
         const newsType = newsTypeElem ? newsTypeElem.value.trim() : 'AVO';
-        const clientKey = localStorage.getItem('nandilive_ai_key') || '';
+        const clientKey = localStorage.getItem('prameya_ai_key') || localStorage.getItem('nandilive_ai_key') || '';
 
         // UI Loading State
         const btn = document.getElementById('btnCheckWithAI');
@@ -1007,9 +1007,10 @@
         if (keyInput) {
             const val = keyInput.value.trim();
             if (val) {
-                localStorage.setItem('nandilive_ai_key', val);
+                localStorage.setItem('prameya_ai_key', val);
                 showAIToast('✔ Gemini API key browser me save ho gayi!', 'success');
             } else {
+                localStorage.removeItem('prameya_ai_key');
                 localStorage.removeItem('nandilive_ai_key');
                 showAIToast('API key removed from browser storage.', 'info');
             }

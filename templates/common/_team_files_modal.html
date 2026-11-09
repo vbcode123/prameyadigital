@@ -36,7 +36,7 @@
             <div class="modal-tabs-header">
                 <button type="button" class="modal-tab-btn tab-active" onclick="switchTeamTab('{{ story.pk }}', 'ce', this)">
                     <span>✍️ Copy Editor</span>
-                    <span class="modal-tab-badge">{% if story.is_script_edited_by_copy_editor %}Script Ready{% else %}Script{% endif %}</span>
+                    <span class="modal-tab-badge">{% if story.is_script_edited_by_copy_editor %}Script Ready ✓{% elif story.assigned_copy_editor %}Assigned{% else %}Script{% endif %}</span>
                 </button>
                 <button type="button" class="modal-tab-btn tab-gd" onclick="switchTeamTab('{{ story.pk }}', 'gd', this)">
                     <span>🎨 Graphic Designer</span>
@@ -60,24 +60,46 @@
                 <div class="tab-staff-banner banner-ce">
                     <div class="staff-profile-info">
                         <div class="staff-avatar-initial" style="background: #2563eb;">
-                            {{ story.assigned_copy_editor.name|default:'C'|slice:':1'|upper }}
+                            {% if story.edited_by_copy_editor %}
+                                {{ story.edited_by_copy_editor.name|slice:':1'|upper }}
+                            {% elif story.assigned_copy_editor %}
+                                {{ story.assigned_copy_editor.name|slice:':1'|upper }}
+                            {% else %}
+                                C
+                            {% endif %}
                         </div>
                         <div>
                             <div style="font-size: 13.5px; font-weight: 700; color: #1e3a8a;">
-                                {{ story.assigned_copy_editor.name|default:'Desk / Editorial Copy' }}
+                                {% if story.edited_by_copy_editor %}
+                                    {{ story.edited_by_copy_editor.name }}
+                                {% elif story.assigned_copy_editor %}
+                                    {{ story.assigned_copy_editor.name }}
+                                {% else %}
+                                    Desk / Editorial Copy
+                                {% endif %}
                             </div>
                             <div style="font-size: 12px; color: #3b82f6;">
-                                Role: Copy Editor &bull; 📞 {{ story.assigned_copy_editor.phone_number|default:'-' }}
+                                Role: Copy Editor &bull; 📞 
+                                {% if story.edited_by_copy_editor and story.edited_by_copy_editor.phone_number %}
+                                    {{ story.edited_by_copy_editor.phone_number }}
+                                {% elif story.assigned_copy_editor and story.assigned_copy_editor.phone_number %}
+                                    {{ story.assigned_copy_editor.phone_number }}
+                                {% else %}
+                                    -
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                     <div>
                         {% if story.is_script_edited_by_copy_editor %}
-                        <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-weight: 700;">✓ Script Edited &amp; Approved</span>
+                        <span class="badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-weight: 700; font-size: 12px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <span>✓ Edited by {% if story.edited_by_copy_editor %}{{ story.edited_by_copy_editor.name }}{% elif story.assigned_copy_editor %}{{ story.assigned_copy_editor.name }}{% else %}Copy Editor{% endif %}</span>
+                        </span>
                         {% elif story.assigned_copy_editor %}
-                        <span class="badge" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe;">Assigned</span>
+                        <span class="badge" style="background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 12px; padding: 5px 12px;">Assigned: {{ story.assigned_copy_editor.name }}</span>
                         {% else %}
-                        <span class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;">Desk Staff</span>
+                        <span class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-size: 12px; padding: 5px 12px;">Desk Staff</span>
                         {% endif %}
                     </div>
                 </div>
@@ -108,6 +130,12 @@
                             </button>
                         </div>
                     </div>
+                    {% if story.is_script_edited_by_copy_editor %}
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12.5px; color: #166534; font-weight: 600; margin-bottom: 12px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                        <span>Script modified &amp; saved by <strong>{% if story.edited_by_copy_editor %}{{ story.edited_by_copy_editor.name }}{% elif story.assigned_copy_editor %}{{ story.assigned_copy_editor.name }}{% else %}Copy Editor{% endif %}</strong>{% if story.script_edited_at %} &bull; {{ story.script_edited_at|date:"d M, Y - h:i A" }}{% elif story.sent_to_visual_editor_at %} &bull; {{ story.sent_to_visual_editor_at|date:"d M, Y - h:i A" }}{% endif %}</span>
+                    </div>
+                    {% endif %}
                     <div class="odia-text-body">{{ story.description|linebreaksbr }}</div>
                 </div>
 

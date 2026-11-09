@@ -1,209 +1,450 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Nandilive Admin{% endblock %}
-{% block page_title %}Admin Dashboard{% endblock %}
+{% block title %}Dashboard - Prameya Digital Newsroom Command{% endblock %}
+{% block page_title %}Newsroom Command Center{% endblock %}
 
 {% block extra_head %}
 <style>
-    /* Welcome Banner */
-    .welcome-banner {
-        background: linear-gradient(135deg, var(--sidebar-navy) 0%, #1e293b 100%);
-        border-radius: var(--radius-lg);
-        padding: 26px 28px;
+    /* ===================================================
+       1. EXECUTIVE WELCOME COMMAND BANNER
+       =================================================== */
+    .command-banner {
+        background: linear-gradient(135deg, #090e1a 0%, #0f172a 55%, #1a1024 100%);
+        border-radius: 16px;
+        padding: 26px 30px;
         color: #ffffff;
         margin-bottom: 24px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        box-shadow: var(--shadow-md);
+        gap: 20px;
+        box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.25);
         border: 1px solid rgba(255, 255, 255, 0.08);
+        position: relative;
+        overflow: hidden;
     }
 
-    .welcome-text h2 {
+    .command-banner::before {
+        content: "";
+        position: absolute;
+        top: -60px;
+        right: -60px;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(225, 29, 72, 0.22) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .command-banner::after {
+        content: "";
+        position: absolute;
+        bottom: -40px;
+        left: 20%;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .command-brand-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(225, 29, 72, 0.15);
+        border: 1px solid rgba(225, 29, 72, 0.35);
+        color: #fda4af;
+        padding: 4px 11px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .command-pulse-dot {
+        width: 7px;
+        height: 7px;
+        background-color: #f43f5e;
+        border-radius: 50%;
+        box-shadow: 0 0 10px #f43f5e;
+        animation: pulseLive 1.8s infinite;
+    }
+
+    @keyframes pulseLive {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.35); opacity: 1; }
+        100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .command-title {
         font-size: 22px;
         font-weight: 800;
-        letter-spacing: -0.3px;
+        letter-spacing: -0.4px;
         margin-bottom: 4px;
+        color: #ffffff;
     }
 
-    .welcome-text p {
-        color: var(--text-light);
-        font-size: 14px;
+    .command-title span {
+        background: linear-gradient(90deg, #fb7185, #facc15);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
-    .welcome-actions {
+    .command-subtitle {
+        color: #94a3b8;
+        font-size: 13.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .station-clock {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: #e2e8f0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Action Dock */
+    .command-actions {
         display: flex;
         align-items: center;
         gap: 10px;
         flex-wrap: wrap;
+        position: relative;
+        z-index: 2;
     }
 
-    .welcome-actions .btn-banner {
-        padding: 9px 16px;
+    .action-btn-primary {
+        background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+        color: #ffffff;
+        padding: 10px 18px;
+        border-radius: 10px;
         font-size: 13px;
-        font-weight: 600;
-        border-radius: var(--radius-md);
+        font-weight: 700;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
         gap: 8px;
+        box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .action-btn-primary:hover {
+        background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+        box-shadow: 0 6px 18px rgba(225, 29, 72, 0.5);
+        transform: translateY(-1px);
+        color: #ffffff;
+    }
+
+    .action-btn-secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: #f1f5f9;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .action-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+        border-color: rgba(255, 255, 255, 0.25);
+        transform: translateY(-1px);
+    }
+
+    /* Dropdown for Personnel */
+    .personnel-dropdown {
+        position: relative;
+    }
+
+    .personnel-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 8px);
+        width: 230px;
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.6);
+        padding: 8px;
+        z-index: 100;
+        animation: fadeInMenu 0.18s ease-out;
+    }
+
+    .personnel-menu.show {
+        display: block;
+    }
+
+    @keyframes fadeInMenu {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .personnel-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        color: #cbd5e1;
+        font-size: 12.5px;
+        font-weight: 600;
+        text-decoration: none;
+        border-radius: 8px;
         transition: all 0.15s ease;
     }
 
-    .btn-banner-reporter {
-        background-color: var(--news-red);
+    .personnel-item:hover {
+        background: rgba(255, 255, 255, 0.08);
         color: #ffffff;
-        box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
     }
 
-    .btn-banner-reporter:hover {
-        background-color: var(--news-red-hover);
+    .personnel-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
     }
 
-    .btn-banner-desk {
-        background-color: #059669;
-        color: #ffffff;
-        box-shadow: 0 4px 10px rgba(5, 150, 105, 0.35);
-    }
-
-    .btn-banner-desk:hover {
-        background-color: #047857;
-    }
-
-    .btn-banner-sm {
-        background-color: #6366f1;
-        color: #ffffff;
-        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
-    }
-
-    .btn-banner-sm:hover {
-        background-color: #4f46e5;
-    }
-
-    .btn-banner-designer {
-        background-color: #ec4899;
-        color: #ffffff;
-        box-shadow: 0 4px 10px rgba(236, 72, 153, 0.35);
-    }
-
-    .btn-banner-designer:hover {
-        background-color: #db2777;
-    }
-
-    .btn-banner-input {
-        background-color: #0891b2;
-        color: #ffffff;
-        box-shadow: 0 4px 10px rgba(8, 145, 178, 0.35);
-    }
-
-    .btn-banner-input:hover {
-        background-color: #0e7490;
-    }
-
-    .btn-banner-vo {
-        background-color: #7c3aed;
-        color: #ffffff;
-        box-shadow: 0 4px 10px rgba(124, 58, 237, 0.35);
-    }
-
-    .btn-banner-vo:hover {
-        background-color: #6d28d9;
-    }
-
-    .btn-banner-ce {
-        background-color: #d97706;
-        color: #ffffff;
-        box-shadow: 0 4px 10px rgba(217, 119, 6, 0.35);
-    }
-
-    .btn-banner-ce:hover {
-        background-color: #b45309;
-    }
-
-    .btn-banner-ve {
-        background-color: #2563eb;
-        color: #ffffff;
-        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
-    }
-
-    .btn-banner-ve:hover {
-        background-color: #1d4ed8;
-    }
-
-    /* Metric Cards Grid */
-    .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 18px;
-        margin-bottom: 26px;
-    }
-
-    .metric-card {
-        background-color: #ffffff;
+    /* ===================================================
+       2. NEWSROOM PRODUCTION WORKFLOW PIPELINE
+       =================================================== */
+    .pipeline-container {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 18px 24px;
+        margin-bottom: 24px;
         border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        padding: 18px 20px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .pipeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .pipeline-header h3 {
+        font-size: 13.5px;
+        font-weight: 800;
+        color: #0f172a;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        box-shadow: var(--shadow-sm);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        gap: 8px;
     }
 
-    .metric-card:hover {
+    .pipeline-steps {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        position: relative;
+    }
+
+    .pipeline-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    .pipeline-card:hover {
+        background: #ffffff;
+        border-color: #cbd5e1;
         transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
+        box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
     }
 
-    .metric-info .metric-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 4px;
-    }
-
-    .metric-info .metric-value {
-        font-size: 26px;
-        font-weight: 800;
-        color: var(--primary-navy);
-        line-height: 1;
-    }
-
-    .metric-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: var(--radius-md);
+    .pipeline-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
     }
 
-    .metric-icon.total-rep {
-        background-color: #fee2e2;
-        color: var(--news-red);
+    .pipeline-info {
+        flex: 1;
+        min-width: 0;
     }
 
-    .metric-icon.active-rep {
-        background-color: var(--success-light);
-        color: var(--success-color);
+    .pipeline-step-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .metric-icon.desk-icon {
-        background-color: #d1fae5;
-        color: #059669;
+    .pipeline-step-desc {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 1px;
     }
 
-    .metric-icon.dist-rep {
-        background-color: #e0f2fe;
-        color: #0284c7;
+    /* Pipeline Step Accents */
+    .pipe-1 .pipeline-icon { background: #e0f2fe; color: #0284c7; }
+    .pipe-2 .pipeline-icon { background: #d1fae5; color: #059669; }
+    .pipe-3 .pipeline-icon { background: #fef3c7; color: #d97706; }
+    .pipe-4 .pipeline-icon { background: #eff6ff; color: #2563eb; }
+    .pipe-5 .pipeline-icon { background: #fdf2f8; color: #db2777; }
+
+    /* ===================================================
+       3. METRICS GRID (6 UPGRADED CARDS)
+       =================================================== */
+    .metrics-grid-pro {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
     }
 
-    .metric-icon.news-icon {
-        background-color: #fef3c7;
-        color: #d97706;
+    .metric-card-pro {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 18px 18px;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .metric-card-pro::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: #cbd5e1;
+    }
+
+    .metric-card-pro:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: #cbd5e1;
+    }
+
+    .metric-card-pro.card-reporters::before { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+    .metric-card-pro.card-news::before { background: linear-gradient(90deg, #e11d48, #f43f5e); }
+    .metric-card-pro.card-desk::before { background: linear-gradient(90deg, #059669, #34d399); }
+    .metric-card-pro.card-districts::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .metric-card-pro.card-studio::before { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+    .metric-card-pro.card-creative::before { background: linear-gradient(90deg, #8b5cf6, #ec4899); }
+
+    .metric-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .metric-label-pro {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .metric-icon-pro {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .metric-value-pro {
+        font-size: 26px;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.5px;
+        line-height: 1;
+        margin-bottom: 6px;
+    }
+
+    .metric-trend-tag {
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #64748b;
+    }
+
+    .trend-success { color: #16a34a; }
+    .trend-info { color: #0284c7; }
+
+    /* ===================================================
+       4. TABLES & DATA GRIDS
+       =================================================== */
+    .dashboard-tables-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 22px;
+        margin-bottom: 24px;
+    }
+
+    .card-pro {
+        background: #ffffff;
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .card-header-pro {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #ffffff;
+    }
+
+    .card-title-pro {
+        font-size: 14px;
+        font-weight: 800;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .reporter-mini-avatar {
@@ -214,323 +455,319 @@
         border: 1.5px solid #cbd5e1;
     }
 
-    .reporter-mini-placeholder {
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        background-color: #e2e8f0;
-        color: var(--primary-navy);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 13px;
-    }
-
+    .reporter-mini-placeholder,
     .desk-mini-placeholder {
         width: 34px;
         height: 34px;
         border-radius: 50%;
-        background-color: #d1fae5;
-        color: #047857;
+        background-color: #f1f5f9;
+        color: #0f172a;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
+        font-weight: 800;
         font-size: 13px;
-        border: 1px solid #a7f3d0;
+        border: 1px solid #e2e8f0;
     }
 
-    .dashboard-tables-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 22px;
+    .desk-mini-placeholder {
+        background-color: #ecfdf5;
+        color: #059669;
+        border-color: #a7f3d0;
     }
 
-    @media (max-width: 1100px) {
-        .metrics-grid {
-            grid-template-columns: repeat(2, 1fr);
+    .id-chip {
+        display: inline-block;
+        padding: 2px 7px;
+        background-color: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    /* ===================================================
+       RESPONSIVE BREAKPOINTS
+       =================================================== */
+    @media (max-width: 1200px) {
+        .metrics-grid-pro {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .pipeline-steps {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 900px) {
+        .command-banner {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 22px 20px;
         }
         .dashboard-tables-grid {
             grid-template-columns: 1fr;
         }
+        .pipeline-steps {
+            grid-template-columns: 1fr;
+        }
     }
 
-    @media (max-width: 768px) {
-        .welcome-banner {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-        }
-        .metrics-grid {
-            grid-template-columns: 1fr;
-            gap: 14px;
+    @media (max-width: 600px) {
+        .metrics-grid-pro {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Welcome Banner -->
-<div class="welcome-banner">
-    <div class="welcome-text">
-        <h2>Welcome back, {{ request.user.first_name|default:request.user.username }}</h2>
-        <p>Nandilive News Network - Central Admin, Reporter &amp; Desk Control Panel</p>
-    </div>
-    <div class="welcome-actions">
-        <a href="{% url 'reporter_add' %}" class="btn-banner btn-banner-reporter">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Reporter</span>
-        </a>
-
-        <a href="{% url 'desk_add' %}" class="btn-banner btn-banner-desk">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Desk Staff</span>
-        </a>
-
-        <a href="{% url 'social_media_add' %}" class="btn-banner btn-banner-sm">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Social Media</span>
-        </a>
-
-        <a href="{% url 'graphic_designer_add' %}" class="btn-banner btn-banner-designer">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Graphic Designer</span>
-        </a>
-
-        <a href="{% url 'input_add' %}" class="btn-banner btn-banner-input">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Input</span>
-        </a>
-
-        <a href="{% url 'voice_over_add' %}" class="btn-banner btn-banner-vo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Voice Over</span>
-        </a>
-
-        <a href="{% url 'copy_editor_add' %}" class="btn-banner btn-banner-ce">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Copy Editor</span>
-        </a>
-
-        <a href="{% url 'visual_editor_add' %}" class="btn-banner btn-banner-ve">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>Add Visual Editor</span>
-        </a>
-    </div>
-</div>
-
-<!-- Key Metrics Grid -->
-<div class="metrics-grid">
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Total Reporters</div>
-            <div class="metric-value">{{ total_reporters }}</div>
+<!-- ============================================== -->
+<!-- 1. EXECUTIVE BROADCAST COMMAND BANNER          -->
+<!-- ============================================== -->
+<div class="command-banner">
+    <div>
+        <div class="command-brand-tag">
+            <span class="command-pulse-dot"></span>
+            <span>Prameya Digital News Network &bull; Live Station Online</span>
         </div>
-        <div class="metric-icon total-rep">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
+        <h1 class="command-title">
+            Newsroom <span>Command Center</span>
+        </h1>
+        <div class="command-subtitle">
+            <span>Welcome back, <strong>{{ request.user.first_name|default:request.user.username }}</strong></span>
+            <span class="station-clock">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span id="liveBhubaneswarClock">Bhubaneswar &bull; Live Desk</span>
+            </span>
         </div>
     </div>
 
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Active Field Reporters</div>
-            <div class="metric-value" style="color: var(--success-color);">{{ active_reporters }}</div>
-        </div>
-        <div class="metric-icon active-rep">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-        </div>
-    </div>
+    <!-- Quick Action Center -->
+    <div class="command-actions">
+        <a href="{% url 'news_add' %}" class="action-btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Ingest News Story</span>
+        </a>
 
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Total Desk Staff</div>
-            <div class="metric-value" style="color: #059669;">{{ total_desks }}</div>
-        </div>
-        <div class="metric-icon desk-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-        </div>
-    </div>
+        <a href="{% url 'reporter_add' %}" class="action-btn-secondary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>+ Reporter</span>
+        </a>
 
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Districts Covered</div>
-            <div class="metric-value">{{ districts_count }}</div>
-        </div>
-        <div class="metric-icon dist-rep">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Total News Stories</div>
-            <div class="metric-value" style="color: #d97706;">
-                {{ total_news|default:"0" }}
-                <a href="{% url 'news_list' %}" style="font-size: 11px; color: #0284c7; font-weight: 600; text-decoration: none; margin-left: 4px;">View &rarr;</a>
+        <!-- Personnel Quick Dropdown -->
+        <div class="personnel-dropdown">
+            <button type="button" class="action-btn-secondary" onclick="togglePersonnelMenu(event)">
+                <span>+ Add Personnel</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="personnel-menu" id="personnelMenu">
+                <a href="{% url 'desk_add' %}" class="personnel-item">
+                    <span class="personnel-dot" style="background:#10b981;"></span>
+                    <span>Desk Operator</span>
+                </a>
+                <a href="{% url 'visual_editor_add' %}" class="personnel-item">
+                    <span class="personnel-dot" style="background:#3b82f6;"></span>
+                    <span>Visual Video Editor</span>
+                </a>
+                <a href="{% url 'voice_over_add' %}" class="personnel-item">
+                    <span class="personnel-dot" style="background:#8b5cf6;"></span>
+                    <span>Voice Over Artist</span>
+                </a>
+                <a href="{% url 'graphic_designer_add' %}" class="personnel-item">
+                    <span class="personnel-dot" style="background:#ec4899;"></span>
+                    <span>Graphic Designer</span>
+                </a>
+                <a href="{% url 'copy_editor_add' %}" class="personnel-item">
+                    <span class="personnel-dot" style="background:#f59e0b;"></span>
+                    <span>Copy Editor</span>
+                </a>
+                <a href="{% url 'social_media_add' %}" class="personnel-item">
+                    <span class="personnel-dot" style="background:#6366f1;"></span>
+                    <span>Social Media Staff</span>
+                </a>
+                <a href="{% url 'input_add' %}" class="personnel-item">
+                    <span class="personnel-dot" style="background:#06b6d4;"></span>
+                    <span>Input Desk</span>
+                </a>
             </div>
-        </div>
-        <div class="metric-icon news-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m2 13a2 2 0 0 1-2-2V7m2 13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"></path>
-                <line x1="7" y1="9" x2="13" y2="9"></line>
-                <line x1="7" y1="13" x2="13" y2="13"></line>
-            </svg>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Social Media Staff</div>
-            <div class="metric-value" style="color: #6366f1;">
-                {{ total_social_media|default:"0" }}
-                <a href="{% url 'social_media_list' %}" style="font-size: 11px; color: #6366f1; font-weight: 600; text-decoration: none; margin-left: 4px;">View &rarr;</a>
-            </div>
-        </div>
-        <div class="metric-icon" style="background-color: #e0e7ff; color: #4f46e5;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="18" cy="5" r="3"></circle>
-                <circle cx="6" cy="12" r="3"></circle>
-                <circle cx="18" cy="19" r="3"></circle>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-            </svg>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Graphic Designers</div>
-            <div class="metric-value" style="color: #ec4899;">
-                {{ total_graphic_designers|default:"0" }}
-                <a href="{% url 'graphic_designer_list' %}" style="font-size: 11px; color: #ec4899; font-weight: 600; text-decoration: none; margin-left: 4px;">View &rarr;</a>
-            </div>
-        </div>
-        <div class="metric-icon" style="background-color: #fdf2f8; color: #db2777;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.5-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16c3.3 0 6-2.7 6-6 0-5.5-4.5-10-10-10z"></path>
-                <circle cx="7.5" cy="11.5" r="1.5"></circle>
-                <circle cx="9.5" cy="7.5" r="1.5"></circle>
-                <circle cx="14.5" cy="7.5" r="1.5"></circle>
-                <circle cx="16.5" cy="11.5" r="1.5"></circle>
-            </svg>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Input Staff</div>
-            <div class="metric-value" style="color: #0891b2;">
-                {{ total_inputs|default:"0" }}
-                <a href="{% url 'input_list' %}" style="font-size: 11px; color: #0891b2; font-weight: 600; text-decoration: none; margin-left: 4px;">View &rarr;</a>
-            </div>
-        </div>
-        <div class="metric-icon" style="background-color: #ecfeff; color: #0891b2;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="12" y1="18" x2="12" y2="12"></line>
-                <line x1="9" y1="15" x2="15" y2="15"></line>
-            </svg>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Voice Over Staff</div>
-            <div class="metric-value" style="color: #7c3aed;">
-                {{ total_voice_overs|default:"0" }}
-                <a href="{% url 'voice_over_list' %}" style="font-size: 11px; color: #7c3aed; font-weight: 600; text-decoration: none; margin-left: 4px;">View &rarr;</a>
-            </div>
-        </div>
-        <div class="metric-icon" style="background-color: #f5f3ff; color: #7c3aed;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Copy Editor Staff</div>
-            <div class="metric-value" style="color: #d97706;">
-                {{ total_copy_editors|default:"0" }}
-                <a href="{% url 'copy_editor_list' %}" style="font-size: 11px; color: #d97706; font-weight: 600; text-decoration: none; margin-left: 4px;">View &rarr;</a>
-            </div>
-        </div>
-        <div class="metric-icon" style="background-color: #fffbeb; color: #d97706;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-info">
-            <div class="metric-label">Visual Editor Staff</div>
-            <div class="metric-value" style="color: #2563eb;">
-                {{ total_visual_editors|default:"0" }}
-                <a href="{% url 'visual_editor_list' %}" style="font-size: 11px; color: #2563eb; font-weight: 600; text-decoration: none; margin-left: 4px;">View &rarr;</a>
-            </div>
-        </div>
-        <div class="metric-icon" style="background-color: #eff6ff; color: #2563eb;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-            </svg>
         </div>
     </div>
 </div>
 
-<!-- Two Column Tables: Recent Reporters & Recent Desk Members -->
+<!-- ============================================== -->
+<!-- 2. NEWSROOM PRODUCTION PIPELINE TRACKER        -->
+<!-- ============================================== -->
+<div class="pipeline-container">
+    <div class="pipeline-header">
+        <h3>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            <span>Live Broadcast Production Pipeline</span>
+        </h3>
+        <span style="font-size: 11.5px; font-weight: 700; color: #16a34a; background: #dcfce7; padding: 2px 8px; border-radius: 4px;">
+            ● 5 Workstations Active
+        </span>
+    </div>
+
+    <div class="pipeline-steps">
+        <!-- 1. Field Ingest -->
+        <div class="pipeline-card pipe-1">
+            <div class="pipeline-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            </div>
+            <div class="pipeline-info">
+                <div class="pipeline-step-title">1. Field Ingest</div>
+                <div class="pipeline-step-desc">{{ active_reporters }} Active Reporters</div>
+            </div>
+        </div>
+
+        <!-- 2. News Desk -->
+        <div class="pipeline-card pipe-2">
+            <div class="pipeline-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            </div>
+            <div class="pipeline-info">
+                <div class="pipeline-step-title">2. Editorial Desk</div>
+                <div class="pipeline-step-desc">{{ total_desks }} Desk Operators</div>
+            </div>
+        </div>
+
+        <!-- 3. Copy & Script -->
+        <div class="pipeline-card pipe-3">
+            <div class="pipeline-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </div>
+            <div class="pipeline-info">
+                <div class="pipeline-step-title">3. Script &amp; Voice</div>
+                <div class="pipeline-step-desc">{{ total_copy_editors }} CE &bull; {{ total_voice_overs }} VO</div>
+            </div>
+        </div>
+
+        <!-- 4. Video Studio -->
+        <div class="pipeline-card pipe-4">
+            <div class="pipeline-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            </div>
+            <div class="pipeline-info">
+                <div class="pipeline-step-title">4. Video Studio</div>
+                <div class="pipeline-step-desc">{{ total_visual_editors }} Visual Editors</div>
+            </div>
+        </div>
+
+        <!-- 5. Social & Wire -->
+        <div class="pipeline-card pipe-5">
+            <div class="pipeline-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+            </div>
+            <div class="pipeline-info">
+                <div class="pipeline-step-title">5. Social Wire</div>
+                <div class="pipeline-step-desc">{{ total_social_media }} Media Staff</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- 3. PRODUCTION METRICS GRID (6 TILES)           -->
+<!-- ============================================== -->
+<div class="metrics-grid-pro">
+    <!-- Tile 1: Reporters -->
+    <div class="metric-card-pro card-reporters">
+        <div class="metric-header">
+            <span class="metric-label-pro">Field Reporters</span>
+            <div class="metric-icon-pro" style="background:#e0f2fe; color:#0284c7;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+            </div>
+        </div>
+        <div class="metric-value-pro">{{ total_reporters }}</div>
+        <div class="metric-trend-tag trend-success">
+            <span style="display:inline-block; width:6px; height:6px; background:#16a34a; border-radius:50%;"></span>
+            <span>{{ active_reporters }} Online in Field</span>
+        </div>
+    </div>
+
+    <!-- Tile 2: Total News -->
+    <div class="metric-card-pro card-news">
+        <div class="metric-header">
+            <span class="metric-label-pro">News Dispatches</span>
+            <div class="metric-icon-pro" style="background:#ffe4e6; color:#e11d48;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m2 13a2 2 0 0 1-2-2V7m2 13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"></path><line x1="7" y1="9" x2="13" y2="9"></line><line x1="7" y1="13" x2="13" y2="13"></line></svg>
+            </div>
+        </div>
+        <div class="metric-value-pro" style="color:#e11d48;">{{ total_news|default:"0" }}</div>
+        <div class="metric-trend-tag">
+            <a href="{% url 'news_list' %}" style="color:#0284c7; text-decoration:none; font-weight:700;">Open Stories Archive &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Tile 3: Desk -->
+    <div class="metric-card-pro card-desk">
+        <div class="metric-header">
+            <span class="metric-label-pro">Editorial Desk</span>
+            <div class="metric-icon-pro" style="background:#d1fae5; color:#059669;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            </div>
+        </div>
+        <div class="metric-value-pro" style="color:#059669;">{{ total_desks }}</div>
+        <div class="metric-trend-tag trend-info">
+            <a href="{% url 'desk_list' %}" style="color:#059669; text-decoration:none; font-weight:700;">Manage Desk Team &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Tile 4: Districts -->
+    <div class="metric-card-pro card-districts">
+        <div class="metric-header">
+            <span class="metric-label-pro">Districts Reach</span>
+            <div class="metric-icon-pro" style="background:#fef3c7; color:#d97706;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            </div>
+        </div>
+        <div class="metric-value-pro">{{ districts_count }}<span style="font-size:15px; color:#94a3b8; font-weight:600;">/30</span></div>
+        <div class="metric-trend-tag">Odisha State Coverage</div>
+    </div>
+
+    <!-- Tile 5: Studio Editors -->
+    <div class="metric-card-pro card-studio">
+        <div class="metric-header">
+            <span class="metric-label-pro">Studio Editors</span>
+            <div class="metric-icon-pro" style="background:#eff6ff; color:#2563eb;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            </div>
+        </div>
+        <div class="metric-value-pro">{{ total_visual_editors|default:"0" }}</div>
+        <div class="metric-trend-tag">
+            <a href="{% url 'visual_editor_list' %}" style="color:#2563eb; text-decoration:none; font-weight:700;">Video &amp; Packaging Desk &rarr;</a>
+        </div>
+    </div>
+
+    <!-- Tile 6: Creative & Graphics -->
+    <div class="metric-card-pro card-creative">
+        <div class="metric-header">
+            <span class="metric-label-pro">Creative Squad</span>
+            <div class="metric-icon-pro" style="background:#fdf2f8; color:#db2777;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </div>
+        </div>
+        <div class="metric-value-pro">{{ total_graphic_designers|default:"0" }}</div>
+        <div class="metric-trend-tag">
+            <span>{{ total_voice_overs|default:"0" }} VO &bull; {{ total_social_media|default:"0" }} SM</span>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- 4. RECENT ROSTER (2-COLUMN GRID)               -->
+<!-- ============================================== -->
 <div class="dashboard-tables-grid">
     <!-- Left: Recent Field Reporters -->
-    <div class="card" style="padding: 0; overflow: hidden;">
-        <div class="card-header" style="padding: 16px 20px; margin-bottom: 0;">
-            <h3 class="card-title" style="font-size: 15px;">Recent Field Reporters</h3>
-            <a href="{% url 'reporter_list' %}" class="btn btn-secondary btn-sm">View All</a>
+    <div class="card-pro">
+        <div class="card-header-pro">
+            <h3 class="card-title-pro">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span>Recent Field Reporters</span>
+            </h3>
+            <a href="{% url 'reporter_list' %}" class="btn btn-secondary btn-sm">All Reporters &rarr;</a>
         </div>
 
         {% if recent_reporters %}
@@ -551,18 +788,18 @@
                     <tr>
                         <td>
                             {% if item.profile_image %}
-                                <img src="{{ item.profile_image.url }}" alt="{{ item.name }}" class="reporter-mini-avatar">
+                            <img src="{{ item.profile_image.url }}" alt="{{ item.name }}" class="reporter-mini-avatar">
                             {% else %}
-                                <div class="reporter-mini-placeholder">
-                                    {{ item.name|slice:":1"|upper }}
-                                </div>
+                            <div class="reporter-mini-placeholder">
+                                {{ item.name|slice:":1"|upper }}
+                            </div>
                             {% endif %}
                         </td>
                         <td>
                             {% if item.reporter_id %}
-                                <span style="display: inline-block; padding: 2px 6px; background-color: #e0f2fe; color: #0369a1; border-radius: 4px; font-family: monospace; font-size: 11px; font-weight: 700;">{{ item.reporter_id }}</span>
+                            <span class="id-chip">{{ item.reporter_id }}</span>
                             {% else %}
-                                <span style="color: var(--text-muted); font-size: 11px;">-</span>
+                            <span style="color: var(--text-muted); font-size: 11px;">-</span>
                             {% endif %}
                         </td>
                         <td>
@@ -587,16 +824,19 @@
         {% else %}
         <div style="text-align: center; padding: 36px 20px; color: var(--text-muted);">
             <p>No field reporters added yet.</p>
-            <a href="{% url 'reporter_add' %}" class="btn btn-primary btn-sm" style="margin-top: 10px;">Add Reporter</a>
+            <a href="{% url 'reporter_add' %}" class="btn btn-primary btn-sm" style="margin-top: 10px;">Add First Reporter</a>
         </div>
         {% endif %}
     </div>
 
     <!-- Right: Recent Desk Staff -->
-    <div class="card" style="padding: 0; overflow: hidden;">
-        <div class="card-header" style="padding: 16px 20px; margin-bottom: 0;">
-            <h3 class="card-title" style="font-size: 15px;">Recent Desk Staff</h3>
-            <a href="{% url 'desk_list' %}" class="btn btn-secondary btn-sm">View All</a>
+    <div class="card-pro">
+        <div class="card-header-pro">
+            <h3 class="card-title-pro">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line></svg>
+                <span>Central Editorial Desk</span>
+            </h3>
+            <a href="{% url 'desk_list' %}" class="btn btn-secondary btn-sm">All Desk &rarr;</a>
         </div>
 
         {% if recent_desks %}
@@ -605,9 +845,9 @@
                 <thead>
                     <tr>
                         <th style="width: 44px;">#</th>
-                        <th>Name</th>
-                        <th>Phone (Login)</th>
-                        <th>Gmail ID</th>
+                        <th>Desk Staff</th>
+                        <th>Phone</th>
+                        <th>Email</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -645,12 +885,18 @@
     </div>
 </div>
 
-<!-- Recent News Feed Section -->
-<div class="card" style="padding: 0; overflow: hidden; margin-top: 24px;">
-    <div class="card-header" style="padding: 16px 20px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
-        <h3 class="card-title" style="font-size: 15px; margin-bottom: 0;">Recent News Reports &amp; Field Stories</h3>
+<!-- ============================================== -->
+<!-- 5. LIVE DISPATCHES FEED TABLE                  -->
+<!-- ============================================== -->
+<div class="card-pro">
+    <div class="card-header-pro">
+        <h3 class="card-title-pro">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2.5"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+            <span>Live Field Stories &amp; Editorial Ingest</span>
+        </h3>
         <div style="display: flex; gap: 8px;">
-            <a href="{% url 'news_list' %}" class="btn btn-secondary btn-sm">View All News &rarr;</a>
+            <a href="{% url 'news_add' %}" class="btn btn-primary btn-sm" style="background:#e11d48; border-color:#e11d48;">+ File New Story</a>
+            <a href="{% url 'news_list' %}" class="btn btn-secondary btn-sm">Full News Feed &rarr;</a>
         </div>
     </div>
 
@@ -659,14 +905,14 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th style="width: 80px;">Type</th>
+                    <th style="width: 80px;">Format</th>
                     <th>Headline</th>
                     <th>Category</th>
                     <th>Location / District</th>
                     <th>Reported By</th>
                     <th>Status</th>
-                    <th>Time</th>
-                    <th style="text-align: right; width: 120px;">Action</th>
+                    <th>Timestamp</th>
+                    <th style="text-align: right; width: 110px;">Workstation</th>
                 </tr>
             </thead>
             <tbody>
@@ -682,20 +928,21 @@
                         </span>
                     </td>
                     <td>
-                        <a href="{% url 'news_view' item.pk %}" style="font-weight: 700; color: var(--primary-navy); text-decoration: none;">
-                            {{ item.headline|truncatechars:50 }}
+                        <a href="{% url 'news_view' item.pk %}"
+                            style="font-weight: 700; color: var(--primary-navy); text-decoration: none;">
+                            {{ item.headline|truncatechars:52 }}
                         </a>
                     </td>
                     <td><span class="badge" style="background: #f1f5f9; color: #475569; font-size: 11px;">{{ item.category }}</span></td>
                     <td style="font-size: 12px; color: var(--text-muted);">{{ item.location }}, {{ item.district }}</td>
                     <td style="font-size: 12px;">
                         {% if item.reporter %}
-                            <span style="color: #0284c7; font-weight: 700;">{{ item.reporter.name }}</span>
-                            <span style="font-family: monospace; font-size: 11px; color: var(--text-muted);">({{ item.reporter.reporter_id }})</span>
+                        <span style="color: #0284c7; font-weight: 700;">{{ item.reporter.name }}</span>
+                        <span style="font-family: monospace; font-size: 11px; color: var(--text-muted);">({{ item.reporter.reporter_id }})</span>
                         {% elif item.author %}
-                            <span style="color: var(--text-dark); font-weight: 600;">{{ item.author.first_name|default:item.author.username }}</span>
+                        <span style="color: var(--text-dark); font-weight: 600;">{{ item.author.first_name|default:item.author.username }}</span>
                         {% else %}
-                            <span style="color: var(--text-muted);">-</span>
+                        <span style="color: var(--text-muted);">-</span>
                         {% endif %}
                     </td>
                     <td>
@@ -706,7 +953,7 @@
                     <td style="font-size: 12px; color: var(--text-muted);">{{ item.created_at|date:"M d, H:i" }}</td>
                     <td style="text-align: right;">
                         <div style="display: inline-flex; gap: 6px;">
-                            <a href="{% url 'news_view' item.pk %}" class="btn-action btn-view" title="View Story">
+                            <a href="{% url 'news_view' item.pk %}" class="btn-action btn-view" title="Open Story Workstation">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                     <circle cx="12" cy="12" r="3"></circle>
@@ -728,8 +975,36 @@
     {% else %}
     <div style="text-align: center; padding: 36px 20px; color: var(--text-muted);">
         <p>No news stories submitted yet.</p>
-        <a href="{% url 'news_add' %}" class="btn btn-primary btn-sm" style="margin-top: 10px;">Submit First News</a>
+        <a href="{% url 'news_add' %}" class="btn btn-primary btn-sm" style="margin-top: 10px; background:#e11d48; border-color:#e11d48;">Submit First News Story</a>
     </div>
     {% endif %}
 </div>
+
+<!-- Dynamic Station Clock Script & Dropdown Toggle -->
+<script>
+    function updateStationClock() {
+        const clockEl = document.getElementById('liveBhubaneswarClock');
+        if (!clockEl) return;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        clockEl.innerHTML = `Bhubaneswar &bull; ${timeStr}`;
+    }
+    setInterval(updateStationClock, 1000);
+    updateStationClock();
+
+    function togglePersonnelMenu(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('personnelMenu');
+        if (menu) {
+            menu.classList.toggle('show');
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('personnelMenu');
+        if (menu && menu.classList.contains('show')) {
+            menu.classList.remove('show');
+        }
+    });
+</script>
 {% endblock %}

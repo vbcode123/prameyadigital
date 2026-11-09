@@ -1,15 +1,16 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Nandilive Social Media Portal{% endblock %}</title>
+    <title>{% block title %}Prameya Digital Social Media Portal{% endblock %}</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+
     <style>
         :root {
             --sm-navy: #0f172a;
@@ -377,21 +378,27 @@
             .sidebar {
                 transform: translateX(-100%);
             }
+
             .sidebar.open {
                 transform: translateX(0);
             }
+
             .sidebar-overlay.open {
                 display: block;
             }
+
             .main-wrapper {
                 margin-left: 0;
             }
+
             .mobile-toggle {
                 display: block;
             }
+
             .page-content {
                 padding: 18px;
             }
+
             .top-header {
                 padding: 0 18px;
             }
@@ -399,12 +406,13 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
+
 <body>
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <a href="{% url 'social_media_dashboard' %}" class="sidebar-brand">
-                <img src="{% static 'images/nandi.png' %}" alt="Nandilive Logo" class="sidebar-logo-img">
+                <img src="{% static 'images/prameya.png' %}" alt="Prameya Digital Logo" class="sidebar-logo-img">
                 <div class="sm-pill">SOCIAL MEDIA</div>
             </a>
 
@@ -420,8 +428,10 @@
             </div>
 
             <nav class="sidebar-nav">
-                <a href="{% url 'social_media_dashboard' %}" class="nav-item {% if active_page == 'social_media_dashboard' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'social_media_dashboard' %}"
+                    class="nav-item {% if active_page == 'social_media_dashboard' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <rect x="3" y="3" width="7" height="9"></rect>
                         <rect x="14" y="3" width="7" height="5"></rect>
                         <rect x="14" y="12" width="7" height="9"></rect>
@@ -430,27 +440,58 @@
                     <span>Dashboard</span>
                 </a>
 
-                <a href="{% url 'social_media_my_task' %}" class="nav-item {% if active_page == 'social_media_my_task' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'social_media_my_task' %}"
+                    class="nav-item {% if active_page == 'social_media_my_task' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="2" y1="12" x2="22" y2="12"></line>
-                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        <path
+                            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                        </path>
                     </svg>
                     <span>My Task</span>
                 </a>
 
-                <a href="{% url 'social_media_chat_desk' %}" class="nav-item {% if active_page == 'social_media_chat_desk' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'social_media_live_control' %}"
+                    class="nav-item {% if active_page == 'social_media_live_control' %}active{% endif %}"
+                    style="{% if active_page != 'social_media_live_control' %}color: #f43f5e;{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                    <span style="font-weight: 700;">🔴 Live Control Room</span>
+                </a>
+
+                <a href="{% url 'social_media_live_settings' %}"
+                    class="nav-item {% if active_page == 'social_media_live_settings' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <span>Stream Keys (YT/FB)</span>
+                </a>
+
+                <a href="{% url 'social_media_chat_desk' %}"
+                    class="nav-item {% if active_page == 'social_media_chat_desk' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                     <span>Chat with Desk</span>
                     {% if sm_unread_chat_count %}
-                    <span style="margin-left: auto; background-color: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; box-shadow: 0 1px 4px rgba(239,68,68,0.4);">{{ sm_unread_chat_count }}</span>
+                    <span
+                        style="margin-left: auto; background-color: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; box-shadow: 0 1px 4px rgba(239,68,68,0.4);">{{
+                        sm_unread_chat_count }}</span>
                     {% endif %}
                 </a>
 
-                <a href="{% url 'social_media_profile' %}" class="nav-item {% if active_page == 'social_media_profile' %}active{% endif %}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{% url 'social_media_profile' %}"
+                    class="nav-item {% if active_page == 'social_media_profile' %}active{% endif %}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
@@ -460,7 +501,8 @@
 
             <div class="sidebar-footer">
                 <a href="{% url 'social_media_logout' %}" class="nav-item" style="color: #fca5a5;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                         <polyline points="16 17 21 12 16 7"></polyline>
                         <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -478,7 +520,8 @@
             <header class="top-header">
                 <div class="header-left">
                     <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Toggle Sidebar">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <line x1="3" y1="12" x2="21" y2="12"></line>
                             <line x1="3" y1="6" x2="21" y2="6"></line>
                             <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -488,8 +531,10 @@
                 </div>
 
                 <div class="header-right">
-                    <a href="{% url 'social_media_profile' %}" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text-main); font-weight: 600;">
-                        <div style="width: 32px; height: 32px; border-radius: 50%; background-color: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">
+                    <a href="{% url 'social_media_profile' %}"
+                        style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text-main); font-weight: 600;">
+                        <div
+                            style="width: 32px; height: 32px; border-radius: 50%; background-color: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">
                             {{ social_media.name|slice:":1"|upper }}
                         </div>
                         <span>{{ social_media.name }}</span>
@@ -523,6 +568,8 @@
         }
     </script>
     {% block extra_scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
     {% include "common/_download_guard.html" %}
 </body>
+
 </html>

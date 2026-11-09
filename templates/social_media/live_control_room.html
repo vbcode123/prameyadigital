@@ -1,0 +1,1234 @@
+{% extends "social_media/base_social_media.html" %}
+{% load static %}
+
+{% block title %}Live Broadcast Control Room — Prameya Digital{% endblock %}
+{% block page_title %}🔴 Master Control Room (MCR Live){% endblock %}
+
+{% block content %}
+<div class="mcr-container">
+    {% csrf_token %}
+    <!-- MCR Header Strip -->
+    <div class="mcr-header">
+        <div class="mcr-brand-info">
+            <div class="mcr-title-row">
+                <span id="mcrStateIndicator" class="mcr-badge {% if active_broadcast %}mcr-badge-live{% else %}mcr-badge-standby{% endif %}">
+                    <span class="mcr-dot"></span>
+                    <span id="mcrStateText">{% if active_broadcast %}BROADCAST ON AIR{% else %}TRANSMISSION STANDBY{% endif %}</span>
+                </span>
+                <span class="mcr-station">Prameya Digital 24x7 News Desk</span>
+            </div>
+            <div class="mcr-subtitle">Central Gateway for Field Reporters • YouTube & Facebook Live Streaming Control</div>
+        </div>
+
+        <div class="mcr-status-actions">
+            <div class="rtmp-destination-status">
+                <span class="rtmp-chip {% if setting.youtube_stream_key %}configured{% endif %}" title="YouTube Live Stream Key">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    YouTube: {% if setting.youtube_stream_key %}Ready{% else %}Missing Key{% endif %}
+                </span>
+                <span class="rtmp-chip {% if setting.facebook_stream_key %}configured{% endif %}" title="Facebook Live Stream Key">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Facebook: {% if setting.facebook_stream_key %}Ready{% else %}Missing Key{% endif %}
+                </span>
+            </div>
+            <a href="{% url 'social_media_live_settings' %}" class="btn-mcr-settings">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>Stream Keys (YT/FB)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Active On-Air Broadcast Console (Only visible when a session is active) -->
+    <div id="activeBroadcastPanel" class="active-broadcast-panel" style="{% if not active_broadcast %}display: none;{% endif %}">
+        <div class="active-top-strip">
+            <div class="active-pulse-wrap">
+                <span class="live-recording-dot"></span>
+                <div>
+                    <div class="active-broadcast-title">ON-AIR LIVE BROADCAST IN PROGRESS</div>
+                    <div class="active-broadcast-sub" id="activeReporterMeta">
+                        {% if active_broadcast %}
+                        <strong>{{ active_broadcast.reporter.name }}</strong> ({{ active_broadcast.reporter.district }}) &bull; Streamed to <strong>{{ active_broadcast.get_destination_display }}</strong>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="active-controls-header">
+                <div class="on-air-timer">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span id="onAirTimer">00:00:00</span>
+                </div>
+                <button type="button" id="btnEmergencyKill" class="btn-kill-switch" title="Immediately cut live stream and revoke broadcast" data-session-id="{{ active_broadcast.id|default:'' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <span>EMERGENCY KILL SWITCH</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="active-body-grid">
+            <!-- Headline on Air -->
+            <div class="active-headline-box">
+                <div class="box-label">ON-AIR LOWER THIRD HEADLINE</div>
+                <div id="activeHeadlineText" class="headline-display">
+                    {% if active_broadcast %}{{ active_broadcast.headline }}{% endif %}
+                </div>
+                <div class="active-actions-row">
+                    <button type="button" id="btnNormalEnd" class="btn-normal-end" data-session-id="{{ active_broadcast.id|default:'' }}">
+                        ⏹ Conclude Live Broadcast
+                    </button>
+                </div>
+            </div>
+
+            <!-- Desk Prompter & Talkback Controls -->
+            <div class="active-talkback-box">
+                <div class="box-label">DESK-TO-REPORTER PROMPTER & TALKBACK</div>
+                <div class="cue-quick-buttons">
+                    <button type="button" class="btn-cue-chip" data-cue="Wrap Up in 30 Seconds">Wrap Up 30s</button>
+                    <button type="button" class="btn-cue-chip" data-cue="Show Crowd & Surroundings">Show Ground View</button>
+                    <button type="button" class="btn-cue-chip" data-cue="Hold Camera Steady">Hold Steady</button>
+                    <button type="button" class="btn-cue-chip" data-cue="Speak Louder & Clear">Mic Voice Up</button>
+                    <button type="button" class="btn-cue-chip" data-cue="Coming to Studio Anchor next">Anchor Next</button>
+                </div>
+
+                <div class="cue-input-row">
+                    <input type="text" id="customCueInput" class="form-input cue-input" placeholder="Type custom cue to reporter's screen...">
+                    <button type="button" id="btnSendCue" class="btn-send-cue" data-session-id="{{ active_broadcast.id|default:'' }}">
+                        Send Cue &rarr;
+                    </button>
+                </div>
+                <div id="cueSentNotice" class="cue-notice" style="display: none;">✅ Cue sent to reporter screen!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid: Incoming Live Requests & Recent Broadcasts -->
+    <div class="mcr-main-grid">
+        <!-- Left Column: Incoming Live Requests -->
+        <div class="mcr-section-card">
+            <div class="section-card-header">
+                <div class="section-card-title">
+                    <span class="request-count-badge" id="pendingCountBadge">{{ pending_sessions.count|default:"0" }}</span>
+                    <span>Incoming Field Live Requests</span>
+                </div>
+                <button type="button" id="btnManualRefresh" class="btn-icon-refresh" title="Refresh Requests">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="pendingRequestsContainer" class="requests-list">
+                {% if pending_sessions %}
+                    {% for s in pending_sessions %}
+                    <div class="request-item" id="requestItem_{{ s.id }}">
+                        <div class="request-header-row">
+                            <div class="reporter-avatar-tag">
+                                <div class="avatar-circle">{{ s.reporter.name|slice:":1" }}</div>
+                                <div>
+                                    <div class="rep-name">{{ s.reporter.name }}</div>
+                                    <div class="rep-meta">{{ s.district }} &bull; {{ s.reporter.reporter_id }}</div>
+                                </div>
+                            </div>
+                            <span class="time-elapsed">{{ s.created_at|timesince }} ago</span>
+                        </div>
+
+                        <div class="request-headline">
+                            "{{ s.headline }}"
+                        </div>
+
+                        <div class="request-approval-bar">
+                            <div class="dest-select-wrap">
+                                <label class="dest-label">Stream To:</label>
+                                <select id="destSelect_{{ s.id }}" class="dest-select">
+                                    <option value="youtube">YouTube Live</option>
+                                    <option value="facebook">Facebook Live</option>
+                                    <option value="youtube_facebook">YouTube & Facebook</option>
+                                </select>
+                            </div>
+
+                            <button type="button" class="btn-approve-live" data-session-id="{{ s.id }}" onclick="approveLive('{{ s.id }}', this)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>Approve & Go Live</span>
+                            </button>
+                            <button type="button" class="btn-reject-live" data-session-id="{{ s.id }}" onclick="stopBroadcast('{{ s.id }}', 'Rejected by Social Media Desk')">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div id="noPendingNotice" class="no-requests-box">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p class="mt-2 font-bold text-slate-700">No Pending Live Requests</p>
+                        <p class="text-xs text-slate-500">When field reporters tap "Request Live Broadcast", their feed alert appears here instantly.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column: Recent Broadcast Archives -->
+        <div class="mcr-section-card">
+            <div class="section-card-header">
+                <div class="section-card-title">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>Recent Broadcast Archives</span>
+                </div>
+            </div>
+
+            <div class="archives-table-wrap">
+                {% if recent_sessions %}
+                <table class="mcr-table">
+                    <thead>
+                        <tr>
+                            <th>Reporter</th>
+                            <th>Headline</th>
+                            <th>Target</th>
+                            <th>Duration</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in recent_sessions %}
+                        <tr>
+                            <td>
+                                <div class="font-bold text-slate-800">{{ r.reporter.name }}</div>
+                                <div class="text-xs text-slate-500">{{ r.district }}</div>
+                            </td>
+                            <td>
+                                <div class="headline-cell" title="{{ r.headline }}">{{ r.headline }}</div>
+                                <div class="text-xs text-slate-400">{{ r.ended_at|date:"d M, H:i" }}</div>
+                            </td>
+                            <td>
+                                <span class="dest-tag">{{ r.get_destination_display }}</span>
+                            </td>
+                            <td>
+                                <span class="font-mono text-xs font-semibold">{{ r.duration_seconds }}s</span>
+                            </td>
+                            <td>
+                                {% if r.recorded_file %}
+                                <a href="{{ r.recorded_file.url }}" target="_blank" class="btn-table-action" title="Download on-air recording">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    <span>Watch</span>
+                                </a>
+                                {% else %}
+                                <span class="text-xs text-slate-400">Archived</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="no-requests-box">
+                    <p class="text-xs text-slate-500">No completed live sessions recorded yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* MCR Control Room Styling */
+.mcr-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 18px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.mcr-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0f172a;
+    color: #fff;
+    padding: 16px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+}
+
+.mcr-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mcr-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.mcr-badge-standby {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.mcr-badge-live {
+    background: #dc2626;
+    color: #ffffff;
+    border: 1px solid #ef4444;
+    animation: livePulse 1.8s infinite;
+}
+
+@keyframes livePulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.mcr-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.mcr-station {
+    font-size: 14px;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+.mcr-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.mcr-status-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.rtmp-destination-status {
+    display: flex;
+    gap: 8px;
+}
+
+.rtmp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255,255,255,0.06);
+    color: #94a3b8;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.rtmp-chip.configured {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.btn-mcr-settings {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #1e293b;
+    color: #f1f5f9;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid #334155;
+    transition: all 0.2s;
+}
+
+.btn-mcr-settings:hover {
+    background: #334155;
+    color: #fff;
+}
+
+/* Active Broadcast Panel */
+.active-broadcast-panel {
+    background: #111827;
+    border: 2px solid #ef4444;
+    border-radius: 14px;
+    padding: 20px 24px;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.active-top-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.active-pulse-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.live-recording-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: livePulse 1.2s infinite;
+}
+
+.active-broadcast-title {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    color: #fca5a5;
+}
+
+.active-broadcast-sub {
+    font-size: 13px;
+    color: #cbd5e1;
+}
+
+.active-controls-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.on-air-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.5);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 16px;
+    font-weight: 800;
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.btn-kill-switch {
+    background: #dc2626;
+    color: #fff;
+    border: 1px solid #ef4444;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+    transition: all 0.2s;
+}
+
+.btn-kill-switch:hover {
+    background: #991b1b;
+}
+
+.active-body-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 900px) {
+    .active-body-grid { grid-template-columns: 1fr; }
+}
+
+.box-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.active-headline-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.headline-display {
+    font-size: 16px;
+    font-weight: 800;
+    color: #f8fafc;
+    line-height: 1.4;
+    margin-bottom: 14px;
+}
+
+.active-actions-row {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-normal-end {
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #475569;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-normal-end:hover {
+    background: #334155;
+    color: #fff;
+}
+
+/* Talkback Box */
+.active-talkback-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cue-quick-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.btn-cue-chip {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cue-chip:hover {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #fff;
+}
+
+.cue-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.cue-input {
+    flex: 1;
+    background: #0b0f19;
+    border: 1px solid #334155;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+}
+
+.cue-input:focus {
+    border-color: #38bdf8;
+}
+
+.btn-send-cue {
+    background: #0284c7;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-send-cue:hover {
+    background: #0369a1;
+}
+
+.cue-notice {
+    font-size: 12px;
+    font-weight: 700;
+    color: #34d399;
+}
+
+/* Main Two Columns Grid */
+.mcr-main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 992px) {
+    .mcr-main-grid { grid-template-columns: 1fr; }
+}
+
+.mcr-section-card {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.section-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.section-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.request-count-badge {
+    background: #dc2626;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.btn-icon-refresh {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon-refresh:hover {
+    color: #0284c7;
+    border-color: #0284c7;
+}
+
+/* Requests List */
+.requests-list {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 540px;
+    overflow-y: auto;
+}
+
+.request-item {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #f59e0b;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.request-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.reporter-avatar-tag {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.avatar-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #0284c7;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.rep-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.rep-meta {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.time-elapsed {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.request-headline {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+.request-approval-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.dest-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.dest-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.dest-select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f172a;
+    background: #fff;
+    outline: none;
+}
+
+.btn-approve-live {
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.btn-approve-live:hover {
+    background: #15803d;
+}
+
+.btn-reject-live {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: 800;
+    transition: all 0.2s;
+}
+
+.btn-reject-live:hover {
+    background: #dc2626;
+    color: #fff;
+}
+
+.no-requests-box {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+/* Archives Table */
+.archives-table-wrap {
+    overflow-x: auto;
+}
+
+.mcr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.mcr-table th {
+    background: #f8fafc;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.mcr-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.headline-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.dest-tag {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.btn-table-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid #cbd5e1;
+}
+
+.btn-table-action:hover {
+    background: #0284c7;
+    color: #fff;
+    border-color: #0284c7;
+}
+</style>
+
+<script>
+(function() {
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // DOM Elements
+    const activeBroadcastPanel = document.getElementById('activeBroadcastPanel');
+    const mcrStateIndicator = document.getElementById('mcrStateIndicator');
+    const mcrStateText = document.getElementById('mcrStateText');
+    const activeHeadlineText = document.getElementById('activeHeadlineText');
+    const activeReporterMeta = document.getElementById('activeReporterMeta');
+    const onAirTimer = document.getElementById('onAirTimer');
+    const btnEmergencyKill = document.getElementById('btnEmergencyKill');
+    const btnNormalEnd = document.getElementById('btnNormalEnd');
+    const customCueInput = document.getElementById('customCueInput');
+    const btnSendCue = document.getElementById('btnSendCue');
+    const cueSentNotice = document.getElementById('cueSentNotice');
+    const pendingRequestsContainer = document.getElementById('pendingRequestsContainer');
+    const pendingCountBadge = document.getElementById('pendingCountBadge');
+    const btnManualRefresh = document.getElementById('btnManualRefresh');
+
+    let currentLiveSessionId = {% if active_broadcast %}{{ active_broadcast.id }}{% else %}null{% endif %};
+    let timerInterval = null;
+    let liveStartTime = null;
+
+    // Start Live Timer
+    function startTimer(startedAtIso) {
+        liveStartTime = startedAtIso ? new Date(startedAtIso) : new Date();
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (!liveStartTime) return;
+            const diff = Math.floor((new Date() - liveStartTime) / 1000);
+            const hrs = String(Math.floor(diff / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            const secs = String(diff % 60).padStart(2, '0');
+            onAirTimer.textContent = `${hrs}:${mins}:${secs}`;
+        }, 1000);
+    }
+
+    function getCsrfToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input && input.value) return input.value;
+        return getCookie('csrftoken') || '';
+    }
+
+    // Approve Live Request
+    async function approveLive(sessionId, btnElement) {
+        if (!sessionId) return;
+        const destSelect = document.getElementById(`destSelect_${sessionId}`);
+        const destination = destSelect ? destSelect.value : 'youtube';
+
+        const originalHtml = btnElement ? btnElement.innerHTML : '';
+        if (btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerHTML = `<span>Going Live...</span>`;
+        }
+
+        const formData = new FormData();
+        formData.append('session_id', sessionId);
+        formData.append('destination', destination);
+        const token = getCsrfToken();
+        if (token) {
+            formData.append('csrfmiddlewaretoken', token);
+        }
+
+        try {
+            const headers = {};
+            if (token) headers['X-CSRFToken'] = token;
+
+            const res = await fetch('/api/live/approve/', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentLiveSessionId = sessionId;
+                if (btnElement) {
+                    btnElement.innerHTML = `<span>✔ On-Air!</span>`;
+                }
+                showActiveBroadcast(data);
+                refreshPending();
+            } else {
+                alert('Approval failed: ' + (data.error || 'Unknown error'));
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = originalHtml;
+                }
+            }
+        } catch (e) {
+            console.error('Approval request failed:', e);
+            alert('Approval error. Please verify network or refresh.');
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalHtml;
+            }
+        }
+    }
+
+    // Stop / Kill Broadcast
+    async function stopBroadcast(sessionId, reason) {
+        if (!sessionId) return;
+        const formData = new FormData();
+        formData.append('session_id', sessionId);
+        formData.append('reason', reason);
+        const token = getCsrfToken();
+        if (token) {
+            formData.append('csrfmiddlewaretoken', token);
+        }
+
+        try {
+            const headers = {};
+            if (token) headers['X-CSRFToken'] = token;
+
+            const res = await fetch('/api/live/stop/', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                hideActiveBroadcast();
+                refreshPending();
+            }
+        } catch (e) {
+            alert('Error stopping broadcast.');
+        }
+    }
+
+    // Send Cue to Reporter
+    async function sendCue(cueText) {
+        if (!currentLiveSessionId || !cueText) return;
+        const formData = new FormData();
+        formData.append('session_id', currentLiveSessionId);
+        formData.append('cue_text', cueText);
+        const token = getCsrfToken();
+        if (token) {
+            formData.append('csrfmiddlewaretoken', token);
+        }
+
+        try {
+            const headers = {};
+            if (token) headers['X-CSRFToken'] = token;
+
+            const res = await fetch('/api/live/cue/', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                cueSentNotice.style.display = 'block';
+                setTimeout(() => { cueSentNotice.style.display = 'none'; }, 2500);
+                customCueInput.value = '';
+            }
+        } catch (e) {
+            console.warn('Cue dispatch error:', e);
+        }
+    }
+
+    function showActiveBroadcast(data) {
+        activeBroadcastPanel.style.display = 'flex';
+        mcrStateIndicator.className = 'mcr-badge mcr-badge-live';
+        mcrStateText.textContent = 'BROADCAST ON AIR';
+        if (data.headline) activeHeadlineText.textContent = data.headline;
+        if (data.reporter_name) {
+            activeReporterMeta.innerHTML = `<strong>${data.reporter_name}</strong> (${data.district || ''}) &bull; Target: <strong>${data.destination_display || 'YouTube Live'}</strong>`;
+        }
+        btnEmergencyKill.dataset.sessionId = currentLiveSessionId;
+        btnNormalEnd.dataset.sessionId = currentLiveSessionId;
+        btnSendCue.dataset.sessionId = currentLiveSessionId;
+        startTimer(data.started_at);
+    }
+
+    function hideActiveBroadcast() {
+        currentLiveSessionId = null;
+        activeBroadcastPanel.style.display = 'none';
+        mcrStateIndicator.className = 'mcr-badge mcr-badge-standby';
+        mcrStateText.textContent = 'TRANSMISSION STANDBY';
+        clearInterval(timerInterval);
+    }
+
+    // Poll Pending Requests & Active Session
+    async function refreshPending() {
+        try {
+            const res = await fetch('/api/live/pending-requests/');
+            const data = await res.json();
+            if (!data.success) return;
+
+            // Handle Active Broadcast sync
+            if (data.active_broadcast) {
+                currentLiveSessionId = data.active_broadcast.session_id;
+                showActiveBroadcast(data.active_broadcast);
+            } else if (currentLiveSessionId) {
+                hideActiveBroadcast();
+            }
+
+            // Update Pending Requests List
+            const pendingList = data.pending || data.pending_requests || [];
+            pendingCountBadge.textContent = pendingList.length;
+            if (pendingList.length === 0) {
+                pendingRequestsContainer.innerHTML = `
+                    <div id="noPendingNotice" class="no-requests-box">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <p class="mt-2 font-bold text-slate-700">No Pending Live Requests</p>
+                        <p class="text-xs text-slate-500">When field reporters tap "Request Live Broadcast", their feed alert appears here instantly.</p>
+                    </div>`;
+            } else {
+                let html = '';
+                pendingList.forEach(s => {
+                    html += `
+                    <div class="request-item" id="requestItem_${s.session_id}">
+                        <div class="request-header-row">
+                            <div class="reporter-avatar-tag">
+                                <div class="avatar-circle">${s.reporter_name.charAt(0)}</div>
+                                <div>
+                                    <div class="rep-name">${s.reporter_name}</div>
+                                    <div class="rep-meta">${s.district} &bull; ${s.reporter_id}</div>
+                                </div>
+                            </div>
+                            <span class="time-elapsed">${s.created_at}</span>
+                        </div>
+                        <div class="request-headline">"${s.headline}"</div>
+                        <div class="request-approval-bar">
+                            <div class="dest-select-wrap">
+                                <label class="dest-label">Stream To:</label>
+                                <select id="destSelect_${s.session_id}" class="dest-select">
+                                    <option value="youtube">YouTube Live</option>
+                                    <option value="facebook">Facebook Live</option>
+                                    <option value="youtube_facebook">YouTube & Facebook</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn-approve-live" data-session-id="${s.session_id}" onclick="approveLive('${s.session_id}', this)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>Approve & Go Live</span>
+                            </button>
+                            <button type="button" class="btn-reject-live" data-session-id="${s.session_id}" onclick="stopBroadcast('${s.session_id}', 'Rejected by Social Media Desk')">✕</button>
+                        </div>
+                    </div>`;
+                });
+                pendingRequestsContainer.innerHTML = html;
+            }
+        } catch (e) {
+            console.warn('Poll error:', e);
+        }
+    }
+
+    // Global Delegated Click Listeners
+    document.addEventListener('click', (e) => {
+        const approveBtn = e.target.closest('.btn-approve-live');
+        if (approveBtn) {
+            approveLive(approveBtn.dataset.sessionId, approveBtn);
+            return;
+        }
+
+        const rejectBtn = e.target.closest('.btn-reject-live');
+        if (rejectBtn) {
+            stopBroadcast(rejectBtn.dataset.sessionId, 'Rejected by Social Media Desk');
+            return;
+        }
+
+        const cueChip = e.target.closest('.btn-cue-chip');
+        if (cueChip) {
+            sendCue(cueChip.dataset.cue);
+            return;
+        }
+    });
+
+    if (btnEmergencyKill) {
+        btnEmergencyKill.addEventListener('click', () => {
+            if (!confirm('🚨 EMERGENCY KILL: Terminate live broadcast immediately?')) return;
+            stopBroadcast(currentLiveSessionId, 'Emergency Kill Switch Triggered');
+        });
+    }
+
+    if (btnNormalEnd) {
+        btnNormalEnd.addEventListener('click', () => {
+            if (!confirm('Conclude the on-air broadcast now?')) return;
+            stopBroadcast(currentLiveSessionId, 'Normal Broadcast Completion');
+        });
+    }
+
+    if (btnSendCue) {
+        btnSendCue.addEventListener('click', () => {
+            const cue = customCueInput.value.trim();
+            if (cue) sendCue(cue);
+        });
+    }
+
+    if (customCueInput) {
+        customCueInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const cue = customCueInput.value.trim();
+                if (cue) sendCue(cue);
+            }
+        });
+    }
+
+    if (btnManualRefresh) {
+        btnManualRefresh.addEventListener('click', refreshPending);
+    }
+
+    // Expose globally for inline button handlers
+    window.approveLive = approveLive;
+    window.stopBroadcast = stopBroadcast;
+    window.sendCue = sendCue;
+    window.refreshPending = refreshPending;
+
+    // Init Polling
+    {% if active_broadcast %}
+    startTimer('{{ active_broadcast.started_at|date:"c" }}');
+    {% endif %}
+    setInterval(refreshPending, 2500);
+})();
+</script>
+{% endblock %}
+

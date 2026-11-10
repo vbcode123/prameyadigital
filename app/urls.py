@@ -277,6 +277,7 @@ urlpatterns = [
     path('api/live/cue/', views.api_social_send_cue, name='api_social_send_cue'),
     path('api/live/stop/', views.api_social_stop_live, name='api_social_stop_live'),
     path('api/live/stream-chunk/', views.api_live_stream_chunk, name='api_live_stream_chunk'),
+    path('api/live/preview/<int:session_id>/', views.api_live_preview, name='api_live_preview'),
     path('api/live/relay-status/<int:session_id>/', views.api_live_relay_status, name='api_live_relay_status'),
     path('api/live/save-recording/', views.api_live_save_recording, name='api_live_save_recording'),
 ]

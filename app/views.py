@@ -8318,6 +8318,7 @@ def api_social_pending_requests(request):
             'current_cue': active.current_cue or '',
             'elapsed_seconds': elapsed,
             'relay': relay_manager.get_status(active.pk),
+            'preview_frame': relay_manager.get_preview(active.pk) or '',
         }
 
     return JsonResponse({
@@ -8453,6 +8454,11 @@ def api_live_stream_chunk(request):
 
         chunk_bytes = chunk_file.read()
         from .streaming_relay import relay_manager
+
+        preview_frame = request.POST.get('preview_frame')
+        if preview_frame:
+            relay_manager.update_preview(session_id, preview_frame)
+
         success, msg = relay_manager.write_chunk(session_id, chunk_bytes, destination=session.destination)
 
         return JsonResponse({
@@ -8464,6 +8470,20 @@ def api_live_stream_chunk(request):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def api_live_preview(request, session_id):
+    """
+    Returns the latest live video frame snapshot for Social Media Control Room monitor.
+    """
+    from .streaming_relay import relay_manager
+    preview = relay_manager.get_preview(session_id)
+    return JsonResponse({
+        'success': bool(preview),
+        'session_id': session_id,
+        'preview_frame': preview or ''
+    })
 
 
 @login_required

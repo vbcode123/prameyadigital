@@ -1060,9 +1060,19 @@
         if (broadcastCanvas.width !== W) broadcastCanvas.width = W;
         if (broadcastCanvas.height !== H) broadcastCanvas.height = H;
 
-        // 1. Draw Raw Camera Frame
+        // 1. Draw Camera Frame with Smart Aspect-Ratio Preservation (No stretching/squashing)
         if (cameraPreview.readyState >= 2 && !cameraPreview.paused && !cameraPreview.ended) {
-            canvasCtx.drawImage(cameraPreview, 0, 0, W, H);
+            const vidW = cameraPreview.videoWidth || W;
+            const vidH = cameraPreview.videoHeight || H;
+
+            // Uniform scale factor ('cover' mode: preserves natural proportions and centers face)
+            const scale = Math.max(W / vidW, H / vidH);
+            const drawW = vidW * scale;
+            const drawH = vidH * scale;
+            const drawX = (W - drawW) / 2;
+            const drawY = (H - drawH) / 2;
+
+            canvasCtx.drawImage(cameraPreview, drawX, drawY, drawW, drawH);
         } else {
             canvasCtx.fillStyle = '#0f172a';
             canvasCtx.fillRect(0, 0, W, H);
@@ -1181,8 +1191,37 @@
             }
             canvasCtx.fillText(displayTitle, strapX + tabW + 20, strapY + 31);
         }
+    }
 
-        canvasAnimId = requestAnimationFrame(drawCanvasComposite);
+    let canvasHeartbeatTimer = null;
+
+    function startCanvasCompositor() {
+        if (!canvasHeartbeatTimer) {
+            canvasHeartbeatTimer = setInterval(drawCanvasComposite, 33); // 30 FPS steady heartbeat
+        }
+        if (!canvasAnimId) {
+            canvasAnimId = requestAnimationFrame(renderLoop);
+        }
+    }
+
+    function renderLoop() {
+        drawCanvasComposite();
+        if (sessionStatus === 'live' || mediaStream) {
+            canvasAnimId = requestAnimationFrame(renderLoop);
+        } else {
+            canvasAnimId = null;
+        }
+    }
+
+    function stopCanvasCompositor() {
+        if (canvasHeartbeatTimer) {
+            clearInterval(canvasHeartbeatTimer);
+            canvasHeartbeatTimer = null;
+        }
+        if (canvasAnimId) {
+            cancelAnimationFrame(canvasAnimId);
+            canvasAnimId = null;
+        }
     }
 
     // Initialize Camera Stream
@@ -1196,19 +1235,20 @@
                 video: {
                     facingMode: facing,
                     width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    height: { ideal: 720 },
+                    aspectRatio: { ideal: 1.7777777778 }
                 },
                 audio: true
             };
 
             mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
             cameraPreview.srcObject = mediaStream;
+            cameraPreview.play().catch(() => {});
             cameraPreview.onloadedmetadata = () => {
                 cameraPreview.play().catch(() => {});
-                if (!canvasAnimId) {
-                    drawCanvasComposite();
-                }
+                startCanvasCompositor();
             };
+            startCanvasCompositor();
             cameraPlaceholder.style.display = 'none';
 
             // Audio Visualizer
@@ -1400,10 +1440,7 @@
 
     function transitionToArchive() {
         sessionStatus = 'ended';
-        if (canvasAnimId) {
-            cancelAnimationFrame(canvasAnimId);
-            canvasAnimId = null;
-        }
+        stopCanvasCompositor();
         setupSection.style.display = 'none';
         pendingSection.style.display = 'none';
         liveSection.style.display = 'none';
@@ -1502,6 +1539,14 @@
         chunkFormData.append('chunk_index', item.index);
         chunkFormData.append('video_chunk', item.blob, `chunk_${item.index}.webm`);
 
+        // Capture live preview frame snapshot from canvas for Desk Program Monitor
+        if (broadcastCanvas) {
+            try {
+                const previewFrame = broadcastCanvas.toDataURL('image/jpeg', 0.6);
+                chunkFormData.append('preview_frame', previewFrame);
+            } catch (e) {}
+        }
+
         try {
             const res = await fetch('/api/live/stream-chunk/', {
                 method: 'POST',
@@ -1543,10 +1588,8 @@
         liveChunkIndex = 0;
         liveChunkQueue.length = 0;
 
-        // Ensure canvas composite render loop is active
-        if (!canvasAnimId) {
-            drawCanvasComposite();
-        }
+        // Ensure continuous 30fps canvas compositor is running
+        startCanvasCompositor();
 
         // Composite stream with TV graphics overlays burned directly into the video
         let streamToRecord = mediaStream;

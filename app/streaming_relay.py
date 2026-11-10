@@ -11,7 +11,7 @@ import logging
 import subprocess
 import threading
 import time
-from pathlib import Path
+from pathlib import Patha
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,8 @@ class RelaySession:
         self.bytes_relayed = 0
         self.started_at = None
         self.error_message = None
+        self.latest_preview_frame = None
+        self.latest_preview_time = 0
         self.ffmpeg_path = shutil.which('ffmpeg') or 'ffmpeg'
 
     def start(self):
@@ -216,11 +218,32 @@ class StreamingRelayManager:
 
     def stop_session(self, session_id):
         session_id = str(session_id)
+        if hasattr(self, '_previews'):
+            self._previews.pop(session_id, None)
         relay = self.sessions.pop(session_id, None)
         if relay:
             relay.stop()
             return True
         return False
+
+    def update_preview(self, session_id, frame_b64):
+        session_id = str(session_id)
+        if not hasattr(self, '_previews'):
+            self._previews = {}
+        self._previews[session_id] = frame_b64
+        relay = self.sessions.get(session_id)
+        if relay:
+            relay.latest_preview_frame = frame_b64
+            relay.latest_preview_time = time.time()
+
+    def get_preview(self, session_id):
+        session_id = str(session_id)
+        relay = self.sessions.get(session_id)
+        if relay and relay.latest_preview_frame:
+            return relay.latest_preview_frame
+        if hasattr(self, '_previews'):
+            return self._previews.get(session_id)
+        return None
 
     def get_status(self, session_id):
         session_id = str(session_id)

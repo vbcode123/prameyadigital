@@ -1013,7 +1013,15 @@
                 headers: headers,
                 body: formData
             });
-            const data = await res.json();
+            let data;
+            try {
+                data = await res.json();
+            } catch (jsonErr) {
+                const text = await res.text();
+                console.error('Non-JSON approval response:', text);
+                data = { success: false, error: 'Server error (' + res.status + '): ' + (text ? text.slice(0, 100) : 'Invalid response') };
+            }
+
             if (data.success) {
                 currentLiveSessionId = sessionId;
                 if (btnElement) {
@@ -1022,7 +1030,7 @@
                 showActiveBroadcast(data);
                 refreshPending();
             } else {
-                alert('Approval failed: ' + (data.error || 'Unknown error'));
+                alert('Approval notice: ' + (data.error || 'Unknown error'));
                 if (btnElement) {
                     btnElement.disabled = false;
                     btnElement.innerHTML = originalHtml;
@@ -1030,7 +1038,7 @@
             }
         } catch (e) {
             console.error('Approval request failed:', e);
-            alert('Approval error. Please verify network or refresh.');
+            alert('Approval network error: ' + (e.message || e));
             if (btnElement) {
                 btnElement.disabled = false;
                 btnElement.innerHTML = originalHtml;

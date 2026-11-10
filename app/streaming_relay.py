@@ -11,7 +11,7 @@ import logging
 import subprocess
 import threading
 import time
-from pathlib import Patha
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

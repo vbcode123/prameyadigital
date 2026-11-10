@@ -8342,30 +8342,40 @@ def api_social_approve_live(request):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
 
-    session_id = request.POST.get('session_id')
-    destination = request.POST.get('destination', 'youtube')
-    session = get_object_or_404(LiveBroadcastSession, pk=session_id)
+    try:
+        session_id = request.POST.get('session_id')
+        destination = request.POST.get('destination', 'youtube')
+        session = LiveBroadcastSession.objects.filter(pk=session_id).first()
+        if not session:
+            return JsonResponse({'success': False, 'error': f'Broadcast session #{session_id} not found.'}, status=404)
 
-    session.status = 'live'
-    session.destination = destination
-    session.approved_by = request.user
-    session.started_at = timezone.now()
-    session.current_cue = "✔ You are LIVE on YouTube / Facebook! Stand by for audio."
-    session.save()
+        session.status = 'live'
+        session.destination = destination
+        session.approved_by = request.user
+        session.started_at = timezone.now()
+        session.current_cue = "✔ You are LIVE on YouTube / Facebook! Stand by for audio."
+        session.save()
 
-    # Pre-initialize streaming relay for YouTube / Facebook
-    from .streaming_relay import relay_manager
-    relay_started, relay_msg = relay_manager.start_session(session.pk, destination)
+        # Pre-initialize streaming relay for YouTube / Facebook
+        relay_started = False
+        relay_msg = ""
+        try:
+            from .streaming_relay import relay_manager
+            relay_started, relay_msg = relay_manager.start_session(session.pk, destination)
+        except Exception as relay_err:
+            relay_msg = str(relay_err)
 
-    return JsonResponse({
-        'success': True,
-        'session_id': session.pk,
-        'status': session.status,
-        'destination': session.destination,
-        'relay_started': relay_started,
-        'relay_message': relay_msg,
-        'message': f"Broadcast is now LIVE on {session.get_destination_display()}!"
-    })
+        return JsonResponse({
+            'success': True,
+            'session_id': session.pk,
+            'status': session.status,
+            'destination': session.destination,
+            'relay_started': relay_started,
+            'relay_message': relay_msg,
+            'message': f"Broadcast is now LIVE on {session.get_destination_display()}!"
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @csrf_exempt

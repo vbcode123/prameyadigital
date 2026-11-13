@@ -13,6 +13,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
@@ -8182,12 +8183,19 @@ def social_media_live_control_view(request):
     pending_sessions = LiveBroadcastSession.objects.filter(status__in=['pending', 'approved']).select_related('reporter').order_by('-created_at')[:10]
     recent_sessions = LiveBroadcastSession.objects.filter(status='ended').select_related('reporter').order_by('-ended_at')[:10]
 
+    # Pre-recorded news video candidates for on-air broadcast
+    recent_news_videos = News.objects.filter(
+        Q(edited_video__isnull=False) & ~Q(edited_video='') |
+        Q(media_file__isnull=False) & ~Q(media_file='')
+    ).select_related('reporter').order_by('-id')[:25]
+
     context = {
         'active_page': 'social_media_live_control',
         'setting': setting,
         'active_broadcast': active_broadcast,
         'pending_sessions': pending_sessions,
         'recent_sessions': recent_sessions,
+        'recent_news_videos': recent_news_videos,
     }
     return render(request, 'social_media/live_control_room.html', context)
 
@@ -8227,7 +8235,7 @@ def social_media_live_settings_view(request):
 @reporter_required
 def api_reporter_request_live(request):
     """
-    Reporter initiates a Live Broadcast Request.
+    Reporter initiates a Live Broadcast Request (Camera Live or Pre-Recorded Video Upload).
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
@@ -8235,23 +8243,33 @@ def api_reporter_request_live(request):
     reporter = request.user.reporter_profile
     headline = request.POST.get('headline', '').strip()
     district = request.POST.get('district', reporter.district).strip()
+    broadcast_type = request.POST.get('broadcast_type', 'camera')
 
     if not headline:
         headline = f"Ground Zero Live Field Report from {district}"
+
+    recorded_file = None
+    if broadcast_type == 'recorded':
+        recorded_file = request.FILES.get('video_file')
+        if not recorded_file:
+            return JsonResponse({'success': False, 'error': 'Please select an MP4 video file to upload.'}, status=400)
 
     # Close any stale session
     LiveBroadcastSession.objects.filter(reporter=reporter, status__in=['pending', 'approved']).update(status='ended', ended_at=timezone.now())
 
     session = LiveBroadcastSession.objects.create(
         reporter=reporter,
+        broadcast_type=broadcast_type,
         headline=headline,
         district=district,
+        recorded_file=recorded_file,
         status='pending'
     )
 
     return JsonResponse({
         'success': True,
         'session_id': session.pk,
+        'broadcast_type': session.broadcast_type,
         'status': session.status,
         'headline': session.headline,
         'message': 'Live broadcast request submitted to Social Media Desk!'
@@ -8273,6 +8291,8 @@ def api_reporter_poll_status(request, session_id):
         'success': True,
         'session_id': session.pk,
         'status': session.status,
+        'broadcast_type': session.broadcast_type,
+        'is_recorded': session.broadcast_type == 'recorded',
         'destination': session.destination,
         'destination_display': session.get_destination_display(),
         'current_cue': session.current_cue or '',
@@ -8294,13 +8314,18 @@ def api_social_pending_requests(request):
 
     data_pending = []
     for s in pending:
+        rep_name = s.reporter.name if s.reporter else "Newsroom Desk"
+        rep_phone = s.reporter.phone_number if s.reporter else ""
+        rep_id = (s.reporter.reporter_id or '') if s.reporter else "DESK"
         data_pending.append({
             'session_id': s.pk,
-            'reporter_name': s.reporter.name,
-            'reporter_phone': s.reporter.phone_number,
-            'reporter_id': s.reporter.reporter_id or '',
+            'reporter_name': rep_name,
+            'reporter_phone': rep_phone,
+            'reporter_id': rep_id,
             'district': s.district,
             'headline': s.headline,
+            'broadcast_type': getattr(s, 'broadcast_type', 'camera'),
+            'video_url': s.recorded_file.url if s.recorded_file else '',
             'created_at': s.created_at.strftime('%H:%M:%S'),
         })
 
@@ -8308,15 +8333,18 @@ def api_social_pending_requests(request):
     if active:
         elapsed = int((timezone.now() - active.started_at).total_seconds()) if active.started_at else 0
         from .streaming_relay import relay_manager
+        rep_name = active.reporter.name if active.reporter else "Newsroom Desk (Recorded)"
+        rep_id = (active.reporter.reporter_id or '') if active.reporter else "DESK"
         active_data = {
             'session_id': active.pk,
-            'reporter_name': active.reporter.name,
-            'reporter_id': active.reporter.reporter_id or '',
+            'reporter_name': rep_name,
+            'reporter_id': rep_id,
             'district': active.district,
             'headline': active.headline,
             'destination': active.get_destination_display(),
             'current_cue': active.current_cue or '',
             'elapsed_seconds': elapsed,
+            'is_recorded': getattr(active, 'broadcast_type', '') == 'recorded',
             'relay': relay_manager.get_status(active.pk),
             'preview_frame': relay_manager.get_preview(active.pk) or '',
         }
@@ -8328,6 +8356,121 @@ def api_social_pending_requests(request):
         'pending_requests': data_pending,
         'active_broadcast': active_data,
     })
+
+
+@csrf_exempt
+@login_required
+def api_social_broadcast_recorded(request):
+    """
+    Social Media Desk broadcasts a pre-recorded news video file to YouTube Live / Facebook Live
+    with real-time TV graphics overlay (Prameya Logo, LIVE badge, Breaking News lower third).
+    """
+    if not is_live_control_authorized(request.user):
+        return JsonResponse({'success': False, 'error': 'Forbidden'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    try:
+        # Check if already broadcasting
+        active_session = LiveBroadcastSession.objects.filter(status='live').first()
+        if active_session:
+            return JsonResponse({
+                'success': False,
+                'error': f'Another broadcast is already LIVE on air (Session #{active_session.pk}). Please stop it first before starting a new broadcast.'
+            }, status=400)
+
+        source_type = request.POST.get('source_type', 'news_item') # 'news_item' or 'file_upload'
+        headline = request.POST.get('headline', '').strip()
+        district = request.POST.get('district', '').strip()
+        destination = request.POST.get('destination', 'youtube')
+        overlay_graphics = request.POST.get('overlay_graphics', '1') in ('1', 'true', 'on', True)
+
+        video_path = None
+        reporter = None
+        news = None
+
+        if source_type == 'file_upload':
+            uploaded_file = request.FILES.get('video_file')
+            if not uploaded_file:
+                return JsonResponse({'success': False, 'error': 'Please select an MP4/WebM video file to upload.'}, status=400)
+
+            import time
+            from django.core.files.storage import default_storage
+            filename = f"recorded_live_{int(time.time())}_{uploaded_file.name}"
+            saved_rel_path = default_storage.save(f"live_recordings/{filename}", uploaded_file)
+            video_path = default_storage.path(saved_rel_path)
+
+            if not headline:
+                headline = os.path.splitext(uploaded_file.name)[0].replace('_', ' ').title()
+
+        else: # 'news_item'
+            news_id = request.POST.get('news_id')
+            if not news_id:
+                return JsonResponse({'success': False, 'error': 'Please select a news video story from the list.'}, status=400)
+
+            news = get_object_or_404(News, pk=news_id)
+            target_file = news.edited_video or news.media_file
+            if not target_file:
+                return JsonResponse({'success': False, 'error': 'Selected news story does not have a video file.'}, status=400)
+
+            video_path = target_file.path
+            reporter = news.reporter
+            if not headline:
+                headline = news.headline
+            if not district:
+                district = news.district or (news.reporter.district if news.reporter else '')
+
+        if not video_path or not os.path.exists(video_path):
+            return JsonResponse({'success': False, 'error': f'Video file not found at: {video_path}'}, status=404)
+
+        if not headline:
+            headline = "Ground Zero Special Coverage"
+
+        # Create LiveBroadcastSession
+        session = LiveBroadcastSession.objects.create(
+            reporter=reporter,
+            broadcast_type='recorded',
+            headline=headline,
+            district=district,
+            status='live',
+            destination=destination,
+            overlay_graphics=overlay_graphics,
+            approved_by=request.user,
+            started_at=timezone.now(),
+            current_cue=f"Broadcasting pre-recorded story: {headline[:30]}"
+        )
+
+        # Start recorded relay
+        from .streaming_relay import relay_manager
+        rep_name = session.reporter.name if session.reporter else ""
+        started, msg = relay_manager.start_recorded_session(
+            session_id=session.pk,
+            video_path=video_path,
+            destination=destination,
+            overlay_graphics=overlay_graphics,
+            headline=headline,
+            district=district,
+            reporter_name=rep_name
+        )
+
+        if not started:
+            session.status = 'ended'
+            session.ended_at = timezone.now()
+            session.save(update_fields=['status', 'ended_at'])
+            return JsonResponse({'success': False, 'error': msg or 'Failed to start video stream'}, status=500)
+
+        return JsonResponse({
+            'success': True,
+            'session_id': session.pk,
+            'headline': session.headline,
+            'destination': session.destination,
+            'destination_display': session.get_destination_display(),
+            'message': f'Recorded video is now LIVE on {session.get_destination_display()}!'
+        })
+    except Exception as e:
+        logger.error(f"Error in api_social_broadcast_recorded: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @csrf_exempt
@@ -8361,7 +8504,19 @@ def api_social_approve_live(request):
         relay_msg = ""
         try:
             from .streaming_relay import relay_manager
-            relay_started, relay_msg = relay_manager.start_session(session.pk, destination)
+            if session.broadcast_type == 'recorded' and session.recorded_file:
+                rep_name = session.reporter.name if session.reporter else ""
+                relay_started, relay_msg = relay_manager.start_recorded_session(
+                    session_id=session.pk,
+                    video_path=session.recorded_file.path,
+                    destination=destination,
+                    overlay_graphics=session.overlay_graphics,
+                    headline=session.headline,
+                    district=session.district,
+                    reporter_name=rep_name
+                )
+            else:
+                relay_started, relay_msg = relay_manager.start_session(session.pk, destination)
         except Exception as relay_err:
             relay_msg = str(relay_err)
 

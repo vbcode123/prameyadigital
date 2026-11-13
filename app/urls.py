@@ -280,5 +280,6 @@ urlpatterns = [
     path('api/live/preview/<int:session_id>/', views.api_live_preview, name='api_live_preview'),
     path('api/live/relay-status/<int:session_id>/', views.api_live_relay_status, name='api_live_relay_status'),
     path('api/live/save-recording/', views.api_live_save_recording, name='api_live_save_recording'),
+    path('api/live/broadcast-recorded/', views.api_social_broadcast_recorded, name='api_social_broadcast_recorded'),
 ]
 

@@ -145,6 +145,100 @@
         </div>
     </div>
 
+    <!-- Pre-Recorded Video Broadcast Console (Simulated Live) -->
+    <div class="mcr-recorded-card">
+        <div class="recorded-card-header" onclick="toggleRecordedConsole()">
+            <div class="recorded-title-wrap">
+                <span class="recorded-icon-badge">🎬</span>
+                <div>
+                    <h3 class="recorded-title">Broadcast Pre-Recorded Video to YouTube Live</h3>
+                    <p class="recorded-subtitle">Stream an edited news package, ground zero video report, or custom MP4 file directly to YouTube Live with official TV graphics (Prameya Logo, 🔴 LIVE badge & Breaking News strap).</p>
+                </div>
+            </div>
+            <button type="button" class="btn-toggle-collapse" id="btnToggleRecorded">
+                <span id="recordedToggleText">▲ Live Video Console</span>
+            </button>
+        </div>
+
+        <div id="recordedConsoleBody" class="recorded-console-body">
+            <!-- Tabs: Select News Story vs Upload Custom File -->
+            <div class="source-tabs">
+                <button type="button" class="source-tab active" id="tabNewsStory" onclick="switchSourceTab('news')">
+                    📰 Choose from Newsroom Stories
+                </button>
+                <button type="button" class="source-tab" id="tabUploadFile" onclick="switchSourceTab('upload')">
+                    📁 Upload MP4 / Video File
+                </button>
+            </div>
+
+            <!-- Form Content -->
+            <form id="recordedBroadcastForm" onsubmit="return false;" class="recorded-form-grid">
+                <!-- Left: Video Source Selection -->
+                <div class="form-group-wrap">
+                    <!-- If News Story Tab -->
+                    <div id="newsSelectSection">
+                        <label class="form-label">Select News Video Story:</label>
+                        <select id="recNewsId" class="mcr-input select-styled" onchange="handleNewsStorySelected(this)">
+                            <option value="">-- Choose a Video Story from Newsroom --</option>
+                            {% for item in recent_news_videos %}
+                            <option value="{{ item.id }}" data-headline="{{ item.headline }}" data-district="{{ item.district }}">
+                                [{{ item.district|default:"Odisha" }}] {{ item.headline|truncatechars:65 }} {% if item.reporter %}(By {{ item.reporter.name }}){% endif %}
+                            </option>
+                            {% empty %}
+                            <option value="" disabled>No recent video stories available in database</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- If Upload Tab -->
+                    <div id="uploadFileSection" style="display: none;">
+                        <label class="form-label">Upload Video File (MP4 / WebM / MOV):</label>
+                        <input type="file" id="recVideoUpload" accept="video/mp4,video/webm,video/quicktime,video/mkv" class="mcr-file-input">
+                        <span class="help-hint">Recommended: 1080p / 720p H.264 MP4 with sound</span>
+                    </div>
+
+                    <div class="form-row-2col" style="margin-top: 14px;">
+                        <div>
+                            <label class="form-label">District / Location:</label>
+                            <input type="text" id="recDistrict" placeholder="e.g. Bhubaneswar, Cuttack" class="mcr-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Stream Destination:</label>
+                            <select id="recDestination" class="mcr-input select-styled">
+                                <option value="youtube">YouTube Live</option>
+                                <option value="facebook">Facebook Live</option>
+                                <option value="youtube_facebook">YouTube & Facebook</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: On-Air Branding & Launch -->
+                <div class="form-group-wrap">
+                    <div>
+                        <label class="form-label">On-Air Lower-Third Headline:</label>
+                        <textarea id="recHeadline" rows="2" placeholder="Headline displayed in breaking news strap on YouTube..." class="mcr-input" style="resize: vertical;"></textarea>
+                    </div>
+
+                    <div class="branding-checkbox-card" style="margin-top: 12px;">
+                        <label class="custom-checkbox-row">
+                            <input type="checkbox" id="recOverlayGraphics" checked>
+                            <span class="chk-label-bold">📺 Burn Official Prameya TV Branding on Stream</span>
+                        </label>
+                        <p class="chk-desc">Automatically overlays Prameya Digital logo (top-right), 🔴 LIVE badge (top-left), and red Breaking News strap (bottom) in 1280x720 Broadcast HD.</p>
+                    </div>
+
+                    <div style="margin-top: 16px;">
+                        <button type="button" id="btnLaunchRecorded" class="btn-launch-broadcast" onclick="launchRecordedLive()">
+                            <span class="live-dot-icon"></span>
+                            <span>🔴 Start Live Broadcast to YouTube</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Main Grid: Incoming Live Requests & Recent Broadcasts -->
     <div class="mcr-main-grid">
         <!-- Left Column: Incoming Live Requests -->
@@ -179,6 +273,10 @@
                         </div>
 
                         <div class="request-headline">
+                            {% if s.broadcast_type == 'recorded' %}
+                            <span style="display: inline-block; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 800; border: 1px solid #bae6fd; margin-right: 6px;">📁 RECORDED VIDEO LIVE</span>
+                            {% if s.recorded_file %}<a href="{{ s.recorded_file.url }}" target="_blank" style="font-size: 11px; color: #0284c7; text-decoration: underline; margin-right: 8px;">▶ Preview Video</a>{% endif %}
+                            {% endif %}
                             "{{ s.headline }}"
                         </div>
 
@@ -924,6 +1022,238 @@
     color: #fff;
     border-color: #0284c7;
 }
+
+/* Pre-Recorded Video Broadcast Console */
+.mcr-recorded-card {
+    background: #0f172a;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.recorded-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(90deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    user-select: none;
+}
+
+.recorded-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.recorded-icon-badge {
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(220, 38, 38, 0.15);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    border-radius: 10px;
+}
+
+.recorded-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0;
+    letter-spacing: 0.3px;
+}
+
+.recorded-subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 3px 0 0 0;
+}
+
+.btn-toggle-collapse {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-toggle-collapse:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.recorded-console-body {
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.source-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 12px;
+}
+
+.source-tab {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.source-tab.active {
+    background: #0284c7;
+    color: #fff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(2, 132, 199, 0.4);
+}
+
+.recorded-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 850px) {
+    .recorded-form-grid { grid-template-columns: 1fr; }
+}
+
+.form-group-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.mcr-input {
+    width: 100%;
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #f8fafc;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+
+.mcr-input:focus {
+    outline: none;
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+.select-styled {
+    cursor: pointer;
+}
+
+.mcr-file-input {
+    width: 100%;
+    padding: 8px;
+    background: #1e293b;
+    border: 1px dashed #475569;
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.help-hint {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.form-row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.branding-checkbox-card {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.custom-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.chk-label-bold {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1f5f9;
+}
+
+.chk-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    margin: 4px 0 0 24px;
+    line-height: 1.4;
+}
+
+.btn-launch-broadcast {
+    width: 100%;
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: #fff;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+    transition: all 0.2s;
+}
+
+.btn-launch-broadcast:hover {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+    transform: translateY(-1px);
+}
+
+.btn-launch-broadcast:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
 </style>
 
 <script>
@@ -1248,6 +1578,10 @@
             } else {
                 let html = '';
                 pendingList.forEach(s => {
+                    const typeBadge = s.broadcast_type === 'recorded' 
+                        ? `<span style="display:inline-block; background:#e0f2fe; color:#0369a1; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:800; border:1px solid #bae6fd; margin-right:6px;">📁 RECORDED VIDEO LIVE</span>` +
+                          (s.video_url ? `<a href="${s.video_url}" target="_blank" style="font-size:11px; color:#38bdf8; text-decoration:underline; margin-right:8px;">▶ Preview Video</a>` : '')
+                        : '';
                     html += `
                     <div class="request-item" id="requestItem_${s.session_id}">
                         <div class="request-header-row">
@@ -1260,7 +1594,7 @@
                             </div>
                             <span class="time-elapsed">${s.created_at}</span>
                         </div>
-                        <div class="request-headline">"${s.headline}"</div>
+                        <div class="request-headline">${typeBadge}"${s.headline}"</div>
                         <div class="request-approval-bar">
                             <div class="dest-select-wrap">
                                 <label class="dest-label">Stream To:</label>
@@ -1343,11 +1677,136 @@
         btnManualRefresh.addEventListener('click', refreshPending);
     }
 
+    // ==========================================
+    // Pre-Recorded Video Broadcast Handlers
+    // ==========================================
+    let currentSourceTab = 'news';
+
+    function toggleRecordedConsole() {
+        const body = document.getElementById('recordedConsoleBody');
+        const text = document.getElementById('recordedToggleText');
+        if (!body) return;
+        if (body.style.display === 'none') {
+            body.style.display = 'block';
+            if (text) text.textContent = '▲ Close Console';
+        } else {
+            body.style.display = 'none';
+            if (text) text.textContent = '▼ Open Console';
+        }
+    }
+
+    function switchSourceTab(type) {
+        currentSourceTab = type;
+        const tabNews = document.getElementById('tabNewsStory');
+        const tabUpload = document.getElementById('tabUploadFile');
+        const secNews = document.getElementById('newsSelectSection');
+        const secUpload = document.getElementById('uploadFileSection');
+
+        if (type === 'news') {
+            if (tabNews) tabNews.classList.add('active');
+            if (tabUpload) tabUpload.classList.remove('active');
+            if (secNews) secNews.style.display = 'block';
+            if (secUpload) secUpload.style.display = 'none';
+        } else {
+            if (tabNews) tabNews.classList.remove('active');
+            if (tabUpload) tabUpload.classList.add('active');
+            if (secNews) secNews.style.display = 'none';
+            if (secUpload) secUpload.style.display = 'block';
+        }
+    }
+
+    function handleNewsStorySelected(select) {
+        const opt = select.options[select.selectedIndex];
+        if (opt && opt.value) {
+            const headlineInput = document.getElementById('recHeadline');
+            const districtInput = document.getElementById('recDistrict');
+            if (headlineInput && opt.dataset.headline) {
+                headlineInput.value = opt.dataset.headline;
+            }
+            if (districtInput && opt.dataset.district) {
+                districtInput.value = opt.dataset.district;
+            }
+        }
+    }
+
+    async function launchRecordedLive() {
+        const btn = document.getElementById('btnLaunchRecorded');
+        const headline = document.getElementById('recHeadline') ? document.getElementById('recHeadline').value.trim() : '';
+        const district = document.getElementById('recDistrict') ? document.getElementById('recDistrict').value.trim() : '';
+        const destination = document.getElementById('recDestination') ? document.getElementById('recDestination').value : 'youtube';
+        const overlayGraphics = (document.getElementById('recOverlayGraphics') && document.getElementById('recOverlayGraphics').checked) ? '1' : '0';
+
+        const formData = new FormData();
+        formData.append('headline', headline);
+        formData.append('district', district);
+        formData.append('destination', destination);
+        formData.append('overlay_graphics', overlayGraphics);
+
+        if (currentSourceTab === 'news') {
+            const newsSelect = document.getElementById('recNewsId');
+            if (!newsSelect || !newsSelect.value) {
+                alert('Please choose a news video story from the list.');
+                return;
+            }
+            formData.append('source_type', 'news_item');
+            formData.append('news_id', newsSelect.value);
+        } else {
+            const fileInput = document.getElementById('recVideoUpload');
+            if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                alert('Please select an MP4 video file from your computer.');
+                return;
+            }
+            formData.append('source_type', 'file_upload');
+            formData.append('video_file', fileInput.files[0]);
+        }
+
+        const destName = destination === 'youtube' ? 'YouTube Live' : (destination === 'facebook' ? 'Facebook Live' : 'YouTube & Facebook');
+        if (!confirm(`Are you ready to broadcast this recorded video LIVE to ${destName}?`)) {
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.dataset.origHtml = btn.innerHTML;
+            btn.innerHTML = `<span>⏳ Initializing Stream Engine...</span>`;
+        }
+
+        try {
+            const res = await fetch('/api/live/broadcast-recorded/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert(`SUCCESS! 🔴 ${data.message}`);
+                window.location.reload();
+            } else {
+                alert(`Broadcasting Error: ${data.error || 'Failed to start broadcast'}`);
+            }
+        } catch (err) {
+            console.error('Launch error:', err);
+            alert(`Network or Server error: ${err.message}`);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                if (btn.dataset.origHtml) btn.innerHTML = btn.dataset.origHtml;
+            }
+        }
+    }
+
     // Expose globally for inline button handlers
     window.approveLive = approveLive;
     window.stopBroadcast = stopBroadcast;
     window.sendCue = sendCue;
     window.refreshPending = refreshPending;
+    window.toggleRecordedConsole = toggleRecordedConsole;
+    window.switchSourceTab = switchSourceTab;
+    window.handleNewsStorySelected = handleNewsStorySelected;
+    window.launchRecordedLive = launchRecordedLive;
 
     // Init Polling
     {% if active_broadcast %}

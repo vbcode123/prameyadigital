@@ -776,11 +776,18 @@ class LiveBroadcastSession(models.Model):
         ('internal', 'Internal Preview Only'),
     ]
 
-    reporter = models.ForeignKey(Reporter, on_delete=models.CASCADE, related_name='live_sessions')
+    BROADCAST_TYPE_CHOICES = [
+        ('camera', 'Live Camera Feed'),
+        ('recorded', 'Pre-Recorded Video'),
+    ]
+
+    reporter = models.ForeignKey(Reporter, on_delete=models.SET_NULL, null=True, blank=True, related_name='live_sessions')
+    broadcast_type = models.CharField(max_length=20, choices=BROADCAST_TYPE_CHOICES, default='camera')
     headline = models.CharField(max_length=255, help_text="Live Story Headline / Topic")
     district = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     destination = models.CharField(max_length=20, choices=DESTINATION_CHOICES, default='youtube')
+    overlay_graphics = models.BooleanField(default=True, help_text="Burn Logo, LIVE badge and Headline onto stream")
     current_cue = models.CharField(max_length=255, blank=True, null=True, help_text="Live prompter cue from Social Media Desk")
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_broadcasts')
     started_at = models.DateTimeField(null=True, blank=True)
@@ -794,7 +801,8 @@ class LiveBroadcastSession(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"[{self.get_status_display()}] {self.reporter.name} ({self.district}) - {self.headline[:30]}"
+        rep_name = self.reporter.name if self.reporter else "Newsroom Desk"
+        return f"[{self.get_status_display()}] {rep_name} ({self.district}) - {self.headline[:30]}"
 
 
 

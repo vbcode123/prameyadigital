@@ -50,7 +50,21 @@
         <div class="viewport-card">
             <div class="video-container" id="videoContainer">
                 <video id="cameraPreview" autoplay playsinline muted></video>
+                <video id="uploadedVideoPreview" controls playsinline loop style="display: none; width: 100%; height: 100%; object-fit: contain; background: #000;"></video>
                 <canvas id="broadcastCanvas" width="1280" height="720" style="position: fixed; left: -9999px; top: -9999px; pointer-events: none; opacity: 0;"></canvas>
+
+                <!-- Pre-Recorded Video Upload Placeholder in Viewport -->
+                <div id="uploadPlaceholder" class="camera-placeholder" style="display: none; z-index: 5;">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <h4 style="color: #f1f5f9; font-size: 15px; margin: 6px 0 2px 0;">Pre-Recorded Video Mode</h4>
+                        <p style="font-size: 12px; color: #94a3b8; max-width: 380px;">Webcam is turned OFF. Choose an MP4 / WebM video file on the right to preview and stream live to YouTube!</p>
+                    </div>
+                </div>
 
                 <!-- On-Screen TV Graphics Overlay (Visible when Live) -->
                 <div id="tvGraphicsOverlay" class="tv-overlay" style="display: none;">
@@ -61,7 +75,7 @@
                             <span>LIVE</span>
                         </div>
                         <div class="channel-logo-tag">
-                            <img src="{% static 'images/liveimage.png' %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg" crossorigin="anonymous">
+                            <img src="{{ channel_logo_b64|default:'/static/images/liveimage.png' }}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
                         </div>
                     </div>
 
@@ -97,7 +111,7 @@
             </div>
 
             <!-- In-Studio Quick Camera Controls -->
-            <div class="camera-control-bar">
+            <div class="camera-control-bar" id="cameraControlBar">
                 <button type="button" id="btnFlipCamera" class="tool-btn" title="Flip Camera">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8h3l-4 5-4-5h3c0-5.523 4.477-10 10-10s10 4.477 10 10z"></path>
@@ -199,6 +213,27 @@
                     <button type="button" id="btnUploadToLive" class="btn-desk-request">
                         <span>📤 Upload for Social Media Approval</span>
                     </button>
+
+                    <!-- Real-Time Upload Progress Card with Percentage -->
+                    <div id="uploadProgressCard" style="display: none; margin-top: 14px; padding: 16px; background: #0f172a; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.35);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="pulse-beacon" style="width: 10px; height: 10px; background: #38bdf8;"></span>
+                                <span id="uploadProgressStatusText" style="font-weight: 700; font-size: 13px; color: #f1f5f9;">Uploading Video to Server...</span>
+                            </div>
+                            <span id="uploadProgressPercentBadge" style="font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace;">0%</span>
+                        </div>
+
+                        <!-- Animated Progress Track & Bar -->
+                        <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden;">
+                            <div id="uploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0284c7 0%, #38bdf8 50%, #10b981 100%); transition: width 0.15s ease-out; border-radius: 6px;"></div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: #94a3b8;">
+                            <span id="uploadProgressSizeText">0 MB / 0 MB</span>
+                            <span id="uploadProgressEtaText" style="color: #38bdf8; font-weight: 600;">Processing...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1083,6 +1118,9 @@
 
     // DOM Elements
     const cameraPreview = document.getElementById('cameraPreview');
+    const uploadedVideoPreview = document.getElementById('uploadedVideoPreview');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    const cameraControlBar = document.getElementById('cameraControlBar');
     const cameraPlaceholder = document.getElementById('cameraPlaceholder');
     const btnRequestCamera = document.getElementById('btnRequestCamera');
     const btnFlipCamera = document.getElementById('btnFlipCamera');
@@ -1103,6 +1141,12 @@
     const btnUploadToLive = document.getElementById('btnUploadToLive');
     const cameraActionButtons = document.getElementById('cameraActionButtons');
     const uploadActionButtons = document.getElementById('uploadActionButtons');
+    const uploadProgressCard = document.getElementById('uploadProgressCard');
+    const uploadProgressBar = document.getElementById('uploadProgressBar');
+    const uploadProgressPercentBadge = document.getElementById('uploadProgressPercentBadge');
+    const uploadProgressStatusText = document.getElementById('uploadProgressStatusText');
+    const uploadProgressSizeText = document.getElementById('uploadProgressSizeText');
+    const uploadProgressEtaText = document.getElementById('uploadProgressEtaText');
     const recordedVideoFileInput = document.getElementById('recordedVideoFileInput');
     const uploadVideoGroup = document.getElementById('uploadVideoGroup');
     const tabLiveCamera = document.getElementById('tabLiveCamera');
@@ -1143,6 +1187,15 @@
     const broadcastCanvas = document.getElementById('broadcastCanvas');
     const canvasCtx = broadcastCanvas ? broadcastCanvas.getContext('2d') : null;
     let canvasAnimId = null;
+
+    // Dedicated in-memory Image for Prameya live logo (Base64 instant zero-latency preload)
+    const channelLogoImage = new Image();
+    const logoDataUri = "{{ channel_logo_b64|escapejs }}";
+    if (logoDataUri) {
+        channelLogoImage.src = logoDataUri;
+    } else {
+        channelLogoImage.src = "{% static 'images/liveimage.png' %}";
+    }
 
     function roundRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
@@ -1208,25 +1261,36 @@
             canvasCtx.fillText('LIVE', liveX + 38, liveY + 25);
 
             // B. Top-Right: Prameya Digital Channel Logo (liveimage.png)
-            const logoImg = document.getElementById('overlayLogoImg');
-            if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
-                const imgW = logoImg.naturalWidth;
-                const imgH = logoImg.naturalHeight;
-                const targetH = 56;
+            const activeLogo = (channelLogoImage && channelLogoImage.complete && channelLogoImage.naturalWidth > 0) ? channelLogoImage :
+                               ((logoImg && logoImg.complete && logoImg.naturalWidth > 0) ? logoImg : null);
+
+            if (activeLogo) {
+                const imgW = activeLogo.naturalWidth;
+                const imgH = activeLogo.naturalHeight;
+                const targetH = 58;
                 const targetW = Math.round((imgW / imgH) * targetH);
-                const boxW = targetW + 14;
-                const boxH = targetH + 10;
+                const pad = 4;
+                const boxW = targetW + (pad * 2);
+                const boxH = targetH + (pad * 2);
                 const boxX = W - boxW - 35;
                 const boxY = 28;
 
-                canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.90)';
+                // White card backing with rounded corners for official Prameya red badge
+                canvasCtx.save();
                 roundRect(canvasCtx, boxX, boxY, boxW, boxH, 8);
-                canvasCtx.fill();
-                canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-                canvasCtx.lineWidth = 1;
-                canvasCtx.stroke();
+                canvasCtx.clip();
+                canvasCtx.fillStyle = '#ffffff';
+                canvasCtx.fillRect(boxX, boxY, boxW, boxH);
+                canvasCtx.drawImage(activeLogo, boxX + pad, boxY + pad, targetW, targetH);
+                canvasCtx.restore();
 
-                canvasCtx.drawImage(logoImg, boxX + 7, boxY + 5, targetW, targetH);
+                // Crisp border around the logo card
+                canvasCtx.save();
+                canvasCtx.strokeStyle = 'rgba(220, 38, 38, 0.9)';
+                canvasCtx.lineWidth = 1.5;
+                roundRect(canvasCtx, boxX, boxY, boxW, boxH, 8);
+                canvasCtx.stroke();
+                canvasCtx.restore();
             } else {
                 const logoTagW = 180;
                 const logoTagH = 48;
@@ -1436,6 +1500,20 @@
         btnRequestCamera.addEventListener('click', () => startCamera(currentFacingMode));
     }
 
+    // Camera Stop Helper
+    function stopCamera() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(t => t.stop());
+            mediaStream = null;
+        }
+        if (cameraPreview) cameraPreview.srcObject = null;
+        if (audioContext) {
+            try { audioContext.close(); } catch(e) {}
+            audioContext = null;
+        }
+        stopCanvasCompositor();
+    }
+
     // Mode Switcher (Camera Live vs Upload to Live)
     let currentLiveMode = 'camera';
     function setLiveMode(mode) {
@@ -1446,12 +1524,40 @@
             uploadVideoGroup.style.display = 'none';
             if (cameraActionButtons) cameraActionButtons.style.display = 'block';
             if (uploadActionButtons) uploadActionButtons.style.display = 'none';
+            if (cameraControlBar) cameraControlBar.style.display = 'flex';
+            if (uploadProgressCard) uploadProgressCard.style.display = 'none';
+
+            // Show camera elements in viewport, hide pre-recorded video preview
+            if (uploadedVideoPreview) {
+                uploadedVideoPreview.pause();
+                uploadedVideoPreview.style.display = 'none';
+            }
+            if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
+            if (cameraPreview) cameraPreview.style.display = 'block';
+
+            // Turn ON camera
+            startCamera(currentFacingMode);
         } else {
             tabLiveCamera.classList.remove('active');
             tabLiveUpload.classList.add('active');
             uploadVideoGroup.style.display = 'block';
             if (cameraActionButtons) cameraActionButtons.style.display = 'none';
             if (uploadActionButtons) uploadActionButtons.style.display = 'block';
+            if (cameraControlBar) cameraControlBar.style.display = 'none';
+
+            // Turn OFF camera completely so user webcam is not open!
+            stopCamera();
+            if (cameraPlaceholder) cameraPlaceholder.style.display = 'none';
+            if (cameraPreview) cameraPreview.style.display = 'none';
+
+            // If a video file is already attached, preview it; otherwise show placeholder
+            if (recordedVideoFileInput && recordedVideoFileInput.files && recordedVideoFileInput.files[0]) {
+                if (uploadedVideoPreview) uploadedVideoPreview.style.display = 'block';
+                if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
+            } else {
+                if (uploadedVideoPreview) uploadedVideoPreview.style.display = 'none';
+                if (uploadPlaceholder) uploadPlaceholder.style.display = 'flex';
+            }
         }
     }
     window.setLiveMode = setLiveMode;
@@ -1460,12 +1566,39 @@
         recordedVideoFileInput.addEventListener('change', () => {
             if (recordedVideoFileInput.files && recordedVideoFileInput.files[0]) {
                 const file = recordedVideoFileInput.files[0];
+                const sizeMb = (file.size / (1024*1024)).toFixed(1);
                 if (fileSelectedBadge) {
-                    fileSelectedBadge.textContent = `✔ ${file.name} (${(file.size / (1024*1024)).toFixed(1)} MB)`;
+                    fileSelectedBadge.textContent = `✔ ${file.name} (${sizeMb} MB)`;
                     fileSelectedBadge.style.display = 'inline';
+                }
+
+                // Preview video directly inside the studio viewport
+                try {
+                    const blobUrl = URL.createObjectURL(file);
+                    if (uploadedVideoPreview) {
+                        uploadedVideoPreview.src = blobUrl;
+                        uploadedVideoPreview.style.display = 'block';
+                        uploadedVideoPreview.play().catch(() => {});
+                    }
+                    if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
+                    if (cameraPreview) cameraPreview.style.display = 'none';
+                } catch (e) {
+                    console.warn('Video preview error:', e);
+                }
+
+                // Auto-fill headline with clean video file name if default headline is present
+                if (headlineInput && (headlineInput.value.includes('Ground Zero Live Field Coverage') || !headlineInput.value.trim())) {
+                    const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+                    headlineInput.value = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
                 }
             } else {
                 if (fileSelectedBadge) fileSelectedBadge.style.display = 'none';
+                if (uploadedVideoPreview) {
+                    uploadedVideoPreview.pause();
+                    uploadedVideoPreview.src = '';
+                    uploadedVideoPreview.style.display = 'none';
+                }
+                if (uploadPlaceholder) uploadPlaceholder.style.display = 'flex';
             }
         });
     }
@@ -1522,114 +1655,131 @@
         });
     }
 
-    // Direct Upload & Go Live (Recorded Mode - Instant to YouTube with TV Graphics)
-    if (btnDirectUploadLive) {
-        btnDirectUploadLive.addEventListener('click', async () => {
-            const headline = headlineInput.value.trim();
-            const district = districtInput.value.trim();
+    // Live Video Upload Handler with Real-Time Percentage (%) Progress
+    function uploadVideoWithProgress(isDirectLive) {
+        const headline = headlineInput.value.trim();
+        const district = districtInput.value.trim();
 
-            if (!recordedVideoFileInput || !recordedVideoFileInput.files || !recordedVideoFileInput.files[0]) {
-                alert('Please choose an MP4 / WebM video file to upload.');
-                return;
-            }
+        if (!recordedVideoFileInput || !recordedVideoFileInput.files || !recordedVideoFileInput.files[0]) {
+            alert('Please choose an MP4 / WebM video file to upload.');
+            return;
+        }
 
-            if (!headline) {
-                alert('Please enter a live story headline.');
-                return;
-            }
+        if (!headline) {
+            alert('Please enter a live story headline.');
+            return;
+        }
 
-            btnDirectUploadLive.disabled = true;
-            btnDirectUploadLive.innerHTML = '<span>⏳ Uploading & Launching YouTube Live...</span>';
+        const file = recordedVideoFileInput.files[0];
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
 
-            const formData = new FormData();
-            formData.append('headline', headline);
-            formData.append('district', district);
-            formData.append('broadcast_type', 'recorded');
+        // Disable buttons during upload
+        if (btnDirectUploadLive) btnDirectUploadLive.disabled = true;
+        if (btnUploadToLive) btnUploadToLive.disabled = true;
+
+        // Show Progress Card
+        if (uploadProgressCard) {
+            uploadProgressCard.style.display = 'block';
+            uploadProgressBar.style.width = '0%';
+            uploadProgressPercentBadge.textContent = '0%';
+            uploadProgressSizeText.textContent = `0 MB / ${fileSizeMB} MB`;
+            uploadProgressStatusText.textContent = isDirectLive 
+                ? 'Uploading video to stream LIVE on YouTube...' 
+                : 'Uploading video to Social Media Desk...';
+            uploadProgressEtaText.textContent = 'Starting upload...';
+        }
+
+        const formData = new FormData();
+        formData.append('headline', headline);
+        formData.append('district', district);
+        formData.append('broadcast_type', 'recorded');
+        if (isDirectLive) {
             formData.append('direct_live', '1');
             formData.append('destination', 'youtube');
-            formData.append('video_file', recordedVideoFileInput.files[0]);
+        }
+        formData.append('video_file', file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/live/request/');
+        xhr.setRequestHeader('X-CSRFToken', csrftoken);
+
+        // Real-Time Upload Progress Tracker
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+                const loadedMB = (e.loaded / (1024 * 1024)).toFixed(1);
+                if (uploadProgressBar) uploadProgressBar.style.width = percent + '%';
+                if (uploadProgressPercentBadge) uploadProgressPercentBadge.textContent = percent + '%';
+                if (uploadProgressSizeText) uploadProgressSizeText.textContent = `${loadedMB} MB / ${fileSizeMB} MB`;
+                if (uploadProgressEtaText) {
+                    uploadProgressEtaText.textContent = `${percent}% Uploaded`;
+                }
+            }
+        };
+
+        xhr.onload = function() {
+            if (uploadProgressBar) uploadProgressBar.style.width = '100%';
+            if (uploadProgressPercentBadge) uploadProgressPercentBadge.textContent = '100%';
+            if (uploadProgressStatusText) {
+                uploadProgressStatusText.textContent = isDirectLive 
+                    ? '✔ Upload 100% Complete! Initializing YouTube Live Stream with Prameya Logo...'
+                    : '✔ Upload 100% Complete! Dispatched to Social Media Desk.';
+            }
 
             try {
-                const res = await fetch('/api/live/request/', {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrftoken },
-                    body: formData
-                });
-                const data = await res.json();
-
+                const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     activeSessionId = data.session_id;
                     strapHeadline.textContent = headline;
-                    if (data.status === 'live') {
-                        transitionToLive(data.destination_display || 'YouTube Live', data.started_at, true);
-                    } else {
-                        pendingHeadlineText.textContent = headline + " (Recorded Video Live)";
-                        transitionToPending();
-                    }
-                    startPolling();
+
+                    setTimeout(() => {
+                        if (uploadProgressCard) uploadProgressCard.style.display = 'none';
+                        if (data.status === 'live') {
+                            transitionToLive(data.destination_display || 'YouTube Live', data.started_at, true);
+                        } else {
+                            pendingHeadlineText.textContent = headline + " (Recorded Video Live)";
+                            transitionToPending();
+                        }
+                        startPolling();
+                    }, 800);
                 } else {
                     alert('Broadcast launch failed: ' + (data.error || 'Unknown error'));
-                    btnDirectUploadLive.disabled = false;
-                    btnDirectUploadLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>⚡ UPLOAD & GO LIVE NOW (ON YOUTUBE)</span>';
+                    resetUploadButtons();
                 }
             } catch (err) {
-                alert('Network error while launching live video.');
-                btnDirectUploadLive.disabled = false;
-                btnDirectUploadLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>⚡ UPLOAD & GO LIVE NOW (ON YOUTUBE)</span>';
+                alert('Server response error: ' + (xhr.responseText ? xhr.responseText.slice(0, 100) : 'Invalid JSON'));
+                resetUploadButtons();
             }
-        });
+        };
+
+        xhr.onerror = function() {
+            alert('Network error while uploading video.');
+            resetUploadButtons();
+        };
+
+        xhr.send(formData);
     }
 
-    // Upload for Desk Approval Handler
+    function resetUploadButtons() {
+        if (uploadProgressCard) uploadProgressCard.style.display = 'none';
+        if (btnDirectUploadLive) {
+            btnDirectUploadLive.disabled = false;
+            btnDirectUploadLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>⚡ UPLOAD & GO LIVE NOW (ON YOUTUBE)</span>';
+        }
+        if (btnUploadToLive) {
+            btnUploadToLive.disabled = false;
+            btnUploadToLive.innerHTML = '<span>📤 Upload for Social Media Approval</span>';
+        }
+    }
+
+    // Direct Upload & Go Live Button Listener
+    if (btnDirectUploadLive) {
+        btnDirectUploadLive.addEventListener('click', () => uploadVideoWithProgress(true));
+    }
+
+    // Upload for Desk Approval Button Listener
     if (btnUploadToLive) {
-        btnUploadToLive.addEventListener('click', async () => {
-            const headline = headlineInput.value.trim();
-            const district = districtInput.value.trim();
-
-            if (!recordedVideoFileInput || !recordedVideoFileInput.files || !recordedVideoFileInput.files[0]) {
-                alert('Please choose an MP4 / WebM video file to upload.');
-                return;
-            }
-
-            if (!headline) {
-                alert('Please enter a live story headline.');
-                return;
-            }
-
-            btnUploadToLive.disabled = true;
-            btnUploadToLive.innerHTML = '<span>⏳ Uploading Video to Live Desk...</span>';
-
-            const formData = new FormData();
-            formData.append('headline', headline);
-            formData.append('district', district);
-            formData.append('broadcast_type', 'recorded');
-            formData.append('video_file', recordedVideoFileInput.files[0]);
-
-            try {
-                const res = await fetch('/api/live/request/', {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrftoken },
-                    body: formData
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    activeSessionId = data.session_id;
-                    pendingHeadlineText.textContent = headline + " (Recorded Video Live)";
-                    strapHeadline.textContent = headline;
-                    transitionToPending();
-                    startPolling();
-                } else {
-                    alert('Upload failed: ' + (data.error || 'Unknown error'));
-                    btnUploadToLive.disabled = false;
-                    btnUploadToLive.innerHTML = '<span>📤 Upload for Social Media Approval</span>';
-                }
-            } catch (err) {
-                alert('Network error while uploading video for live broadcast.');
-                btnUploadToLive.disabled = false;
-                btnUploadToLive.innerHTML = '<span>📤 Upload for Social Media Approval</span>';
-            }
-        });
+        btnUploadToLive.addEventListener('click', () => uploadVideoWithProgress(false));
     }
 
     // Request Live Broadcast (Camera Mode - Desk Approval)
@@ -1764,7 +1914,23 @@
         updateLiveTimer();
 
         // Start local MediaRecorder only if live camera broadcast
-        if (!isRecorded) {
+        if (isRecorded) {
+            stopCamera();
+            if (cameraPreview) cameraPreview.style.display = 'none';
+            if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
+            if (uploadedVideoPreview) {
+                uploadedVideoPreview.style.display = 'block';
+                uploadedVideoPreview.play().catch(() => {});
+            }
+            if (prompterMessage) {
+                prompterMessage.textContent = "Broadcasting recorded video live to YouTube viewers.";
+            }
+        } else {
+            if (uploadedVideoPreview) {
+                uploadedVideoPreview.pause();
+                uploadedVideoPreview.style.display = 'none';
+            }
+            if (cameraPreview) cameraPreview.style.display = 'block';
             startRecording();
         }
     }
@@ -2014,14 +2180,19 @@
 
     // Bootstrap
     window.addEventListener('DOMContentLoaded', () => {
-        startCamera(currentFacingMode);
+        const isRecActive = '{{ active_session.broadcast_type }}' === 'recorded';
+        if (isRecActive) {
+            setLiveMode('upload');
+        } else {
+            startCamera(currentFacingMode);
+        }
 
         if (activeSessionId) {
             if (sessionStatus === 'pending') {
                 transitionToPending();
                 startPolling();
             } else if (sessionStatus === 'live') {
-                transitionToLive('{{ active_session.get_destination_display }}', '{{ active_session.started_at|date:"c" }}');
+                transitionToLive('{{ active_session.get_destination_display }}', '{{ active_session.started_at|date:"c" }}', isRecActive);
                 startPolling();
             }
         }

@@ -8156,12 +8156,27 @@ def reporter_live_view(request):
 
     setting = LiveStreamSetting.objects.first()
 
+    # Pre-encode official live logo into Base64 for instant zero-latency canvas rendering
+    channel_logo_b64 = ""
+    try:
+        from django.conf import settings as dj_settings
+        logo_path = os.path.join(dj_settings.BASE_DIR, 'app', 'static', 'images', 'liveimage.png')
+        if not os.path.exists(logo_path):
+            logo_path = os.path.join(dj_settings.BASE_DIR, 'app', 'static', 'images', 'prameya.png')
+        if os.path.exists(logo_path):
+            import base64
+            with open(logo_path, 'rb') as lf:
+                channel_logo_b64 = "data:image/png;base64," + base64.b64encode(lf.read()).decode('ascii')
+    except Exception as e:
+        logger.warning(f"Error encoding live logo base64: {e}")
+
     context = {
         'active_page': 'reporter_live',
         'reporter': reporter,
         'active_session': active_session,
         'setting': setting,
         'district': reporter.district,
+        'channel_logo_b64': channel_logo_b64,
     }
     return render(request, 'reporter/live_broadcast.html', context)
 

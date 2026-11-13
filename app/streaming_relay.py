@@ -208,7 +208,7 @@ def generate_broadcast_overlay(output_path, headline="Live Coverage", district="
                 mask_draw = ImageDraw.Draw(mask)
                 mask_draw.rounded_rectangle([0, 0, logo.width - 1, logo.height - 1], radius=8, fill=255)
 
-                draw.rounded_rectangle([lx - 6, ly - 4, lx + logo.width + 6, ly + logo.height + 4], radius=10, fill=(15, 23, 42, 210))
+                draw.rounded_rectangle([lx - 6, ly - 4, lx + logo.width + 6, ly + logo.height + 4], radius=10, fill=(255, 255, 255, 255), outline=(220, 38, 38, 240), width=2)
                 overlay.paste(logo, (lx, ly), mask=mask)
             except Exception as e:
                 logger.warning(f"Failed to paste logo on overlay: {e}")

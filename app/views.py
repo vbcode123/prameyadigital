@@ -8236,6 +8236,7 @@ def social_media_live_settings_view(request):
 def api_reporter_request_live(request):
     """
     Reporter initiates a Live Broadcast Request (Camera Live or Pre-Recorded Video Upload).
+    Supports Direct Go-Live (direct_live=1) or Request Desk Approval (default).
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
@@ -8244,6 +8245,8 @@ def api_reporter_request_live(request):
     headline = request.POST.get('headline', '').strip()
     district = request.POST.get('district', reporter.district).strip()
     broadcast_type = request.POST.get('broadcast_type', 'camera')
+    direct_live = request.POST.get('direct_live') in ('1', 'true', 'on', True)
+    destination = request.POST.get('destination', 'youtube')
 
     if not headline:
         headline = f"Ground Zero Live Field Report from {district}"
@@ -8254,8 +8257,15 @@ def api_reporter_request_live(request):
         if not recorded_file:
             return JsonResponse({'success': False, 'error': 'Please select an MP4 video file to upload.'}, status=400)
 
-    # Close any stale session
-    LiveBroadcastSession.objects.filter(reporter=reporter, status__in=['pending', 'approved']).update(status='ended', ended_at=timezone.now())
+    # Close any stale sessions for this reporter
+    LiveBroadcastSession.objects.filter(reporter=reporter, status__in=['pending', 'approved', 'live']).update(
+        status='ended',
+        ended_at=timezone.now()
+    )
+
+    status = 'live' if direct_live else 'pending'
+    started_at = timezone.now() if direct_live else None
+    cue = "✔ You are LIVE on YouTube!" if direct_live else ""
 
     session = LiveBroadcastSession.objects.create(
         reporter=reporter,
@@ -8263,16 +8273,45 @@ def api_reporter_request_live(request):
         headline=headline,
         district=district,
         recorded_file=recorded_file,
-        status='pending'
+        status=status,
+        destination=destination,
+        started_at=started_at,
+        approved_by=request.user if direct_live else None,
+        overlay_graphics=True,
+        current_cue=cue
     )
+
+    relay_started = False
+    relay_msg = ""
+    if direct_live:
+        from .streaming_relay import relay_manager
+        if broadcast_type == 'recorded' and session.recorded_file:
+            rep_name = reporter.name if reporter else ""
+            relay_started, relay_msg = relay_manager.start_recorded_session(
+                session_id=session.pk,
+                video_path=session.recorded_file.path,
+                destination=destination,
+                overlay_graphics=session.overlay_graphics,
+                headline=session.headline,
+                district=session.district,
+                reporter_name=rep_name
+            )
+        else:
+            relay_started, relay_msg = relay_manager.start_session(session.pk, destination)
 
     return JsonResponse({
         'success': True,
         'session_id': session.pk,
         'broadcast_type': session.broadcast_type,
         'status': session.status,
+        'is_live': direct_live,
+        'destination': session.destination,
+        'destination_display': session.get_destination_display(),
+        'started_at': session.started_at.isoformat() if session.started_at else None,
+        'relay_started': relay_started,
+        'relay_message': relay_msg,
         'headline': session.headline,
-        'message': 'Live broadcast request submitted to Social Media Desk!'
+        'message': f"Broadcast is now LIVE on {session.get_destination_display()}!" if direct_live else 'Live broadcast request submitted to Social Media Desk!'
     })
 
 
@@ -8295,6 +8334,7 @@ def api_reporter_poll_status(request, session_id):
         'is_recorded': session.broadcast_type == 'recorded',
         'destination': session.destination,
         'destination_display': session.get_destination_display(),
+        'started_at': session.started_at.isoformat() if session.started_at else None,
         'current_cue': session.current_cue or '',
         'elapsed_seconds': elapsed,
         'headline': session.headline,

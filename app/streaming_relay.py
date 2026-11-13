@@ -28,6 +28,7 @@ class RelaySession:
         self.error_message = None
         self.latest_preview_frame = None
         self.latest_preview_time = 0
+        self.log_file = None
         self.ffmpeg_path = shutil.which('ffmpeg') or 'ffmpeg'
 
     def start(self):
@@ -54,8 +55,7 @@ class RelaySession:
                     self.ffmpeg_path,
                     '-y',
                     '-loglevel', 'warning',
-                    '-re',                          # Ingest at real-time pace
-                    '-f', 'webm',                   # Browser MediaRecorder container
+                    '-f', 'webm',                   # Browser MediaRecorder container (real-time stream)
                     '-i', 'pipe:0',                 # Read chunks from stdin
                     '-c:v', 'libx264',              # H.264 video codec required by YouTube/FB
                     '-preset', 'veryfast',          # Fast encoding for real-time
@@ -80,12 +80,17 @@ class RelaySession:
                 else:
                     cmd.extend(['-f', 'flv', primary_url])
 
-                # Launch FFmpeg process with piped stdin
+                # Pipe stderr to log file to avoid OS buffer deadlocks (prevent pipe freezing)
+                import tempfile
+                log_path = Path(tempfile.gettempdir()) / f"ffmpeg_camera_{self.session_id}.log"
+                self.log_file = open(log_path, 'wb')
+
+                # Launch FFmpeg process with piped stdin and file-backed stderr
                 self.process = subprocess.Popen(
                     cmd,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE
+                    stderr=self.log_file
                 )
 
                 self.is_active = True
@@ -119,10 +124,16 @@ class RelaySession:
             # Check if FFmpeg has crashed or exited
             poll_code = self.process.poll()
             if poll_code is not None:
-                _, err_out = self.process.communicate()
-                err_str = err_out.decode('utf-8', errors='ignore') if err_out else f"Process exited with code {poll_code}"
+                err_str = f"Process exited with code {poll_code}"
+                try:
+                    if hasattr(self, 'log_file') and self.log_file:
+                        self.log_file.flush()
+                        with open(self.log_file.name, 'r', errors='ignore') as lf:
+                            err_str = lf.read()[-300:] or err_str
+                except Exception:
+                    pass
                 self.is_active = False
-                self.error_message = f"FFmpeg relay exited: {err_str[-200:]}"
+                self.error_message = f"FFmpeg relay exited: {err_str}"
                 logger.warning(f"[Relay {self.session_id}] {self.error_message}")
                 return False, self.error_message
 
@@ -154,6 +165,13 @@ class RelaySession:
                         self.process.kill()
                 finally:
                     self.process = None
+
+            if hasattr(self, 'log_file') and self.log_file and not self.log_file.closed:
+                try:
+                    self.log_file.close()
+                except Exception:
+                    pass
+
             logger.info(f"[Relay {self.session_id}] FFmpeg relay stopped. Total chunks: {self.chunks_received}, bytes: {self.bytes_relayed}")
 
 
@@ -244,7 +262,7 @@ def generate_broadcast_overlay(output_path, headline="Live Coverage", district="
 
         draw.text((195, 662), disp_text, fill=(255, 255, 255, 255), font=text_font)
 
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         overlay.save(output_path, format='PNG')
         return True, output_path
     except Exception as e:
@@ -360,7 +378,7 @@ class RecordedRelaySession:
 
             if len(self.target_urls) > 1:
                 tee_targets = "|".join([f"[f=flv:onfail=ignore]{url}" for url in self.target_urls])
-                cmd.extend(['-f', 'tee', '-map', '[outv]', '-map', '0:a?', tee_targets])
+                cmd.extend(['-f', 'tee', tee_targets])
             else:
                 cmd.extend(['-f', 'flv', primary_url])
 

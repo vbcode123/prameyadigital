@@ -288,17 +288,17 @@
 .strap-reporter-container {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     align-self: flex-start;
 }
 
 .strap-reporter-photo-frame {
-    width: 54px;
-    height: 54px;
-    border-radius: 6px;
+    width: 76px;
+    height: 76px;
+    border-radius: 8px;
     overflow: hidden;
-    border: 2.5px solid #f59e0b;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    border: 3px solid #f59e0b;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
     background: #0f172a;
     flex-shrink: 0;
     display: flex;
@@ -322,14 +322,14 @@
     align-items: center;
     justify-content: center;
     font-weight: 900;
-    font-size: 20px;
+    font-size: 26px;
 }
 
 .strap-reporter-badge {
     background: rgba(11, 15, 25, 0.94);
     color: #f1f5f9;
     border-left: 5px solid #f59e0b;
-    padding: 8px 16px 8px 12px;
+    padding: 10px 18px 10px 14px;
     align-self: center;
     border-radius: 0 8px 8px 0;
     display: inline-flex;
@@ -346,7 +346,7 @@
 }
 
 .strap-reporter-name {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 800;
     color: #ffffff;
     letter-spacing: 0.3px;
@@ -358,7 +358,7 @@
 }
 
 .strap-district-text {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: #fbbf24;
     text-transform: uppercase;
@@ -1418,7 +1418,7 @@
                 const strapH = 50;
 
                 // 1) Reporter Square Profile Photo Box & Adjacent Name/District Badge
-                const photoSize = 54;  // Prominent square photo box!
+                const photoSize = 78;  // Prominent large square photo box!
                 const photoX = 40;
                 const photoY = strapY - photoSize - 8;
 
@@ -1426,7 +1426,7 @@
                 const hasRepPhoto = (reporterPhotoImage && reporterPhotoImage.complete && reporterPhotoImage.naturalWidth > 0);
                 if (hasRepPhoto) {
                     canvasCtx.save();
-                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 8);
                     canvasCtx.clip();
                     const imgW = reporterPhotoImage.naturalWidth;
                     const imgH = reporterPhotoImage.naturalHeight;
@@ -1439,22 +1439,22 @@
                     // Crisp Amber border around the square photo box
                     canvasCtx.save();
                     canvasCtx.strokeStyle = '#f59e0b';
-                    canvasCtx.lineWidth = 2.5;
-                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                    canvasCtx.lineWidth = 3;
+                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 8);
                     canvasCtx.stroke();
                     canvasCtx.restore();
                 } else {
                     // Fallback square photo frame with initials
                     canvasCtx.save();
                     canvasCtx.fillStyle = '#0f172a';
-                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 8);
                     canvasCtx.fill();
                     canvasCtx.strokeStyle = '#f59e0b';
-                    canvasCtx.lineWidth = 2;
+                    canvasCtx.lineWidth = 3;
                     canvasCtx.stroke();
 
                     canvasCtx.fillStyle = '#f59e0b';
-                    canvasCtx.font = 'bold 20px "Inter", -apple-system, sans-serif';
+                    canvasCtx.font = 'bold 26px "Inter", -apple-system, sans-serif';
                     canvasCtx.textAlign = 'center';
                     canvasCtx.textBaseline = 'middle';
                     const initials = repName.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '🎤';
@@ -1463,13 +1463,13 @@
                 }
 
                 // B. Draw Reporter Name & District Badge (Right next to square photo)
-                const badgeX = photoX + photoSize + 10;
-                const badgeH = 40;
+                const badgeX = photoX + photoSize + 12;
+                const badgeH = 46;
                 const badgeY = photoY + Math.round((photoSize - badgeH) / 2); // vertically centered
                 const repText = `${repName}` + (repDist ? `  |  ${repDist.toUpperCase()}` : '');
-                canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
+                canvasCtx.font = 'bold 16px "Inter", -apple-system, sans-serif';
                 const repTextW = canvasCtx.measureText(repText).width;
-                const badgeW = repTextW + 32;
+                const badgeW = repTextW + 36;
 
                 canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.95)';
                 roundRect(canvasCtx, badgeX, badgeY, badgeW, badgeH, 6);
@@ -1481,7 +1481,7 @@
 
                 // Reporter Name & District text
                 canvasCtx.fillStyle = '#f8fafc';
-                canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
+                canvasCtx.font = 'bold 16px "Inter", -apple-system, sans-serif';
                 canvasCtx.textAlign = 'left';
                 canvasCtx.textBaseline = 'middle';
                 canvasCtx.fillText(repText, badgeX + 16, badgeY + (badgeH / 2));

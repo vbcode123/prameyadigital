@@ -247,9 +247,9 @@ def generate_broadcast_overlay(output_path, headline="Live Coverage", district="
             rep_text = f"{reporter_name}" + (f"  |  {district.upper()}" if district else "")
             text_w = int(draw.textlength(rep_text, font=text_font)) if hasattr(draw, 'textlength') else len(rep_text) * 11
 
-            photo_size = 54
+            photo_size = 78
             photo_x = 40
-            photo_y = 574
+            photo_y = 554
 
             # A. Draw Square Photo Box (Before Name)
             photo_drawn = False
@@ -264,33 +264,33 @@ def generate_broadcast_overlay(output_path, headline="Live Coverage", district="
 
                     mask = Image.new('L', (photo_size, photo_size), 0)
                     mask_draw = ImageDraw.Draw(mask)
-                    mask_draw.rounded_rectangle([0, 0, photo_size - 1, photo_size - 1], radius=6, fill=255)
+                    mask_draw.rounded_rectangle([0, 0, photo_size - 1, photo_size - 1], radius=8, fill=255)
 
                     overlay.paste(rep_img, (photo_x, photo_y), mask=mask)
                     # Amber border around square photo
-                    draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_size, photo_y + photo_size], radius=6, outline=(245, 158, 11, 255), width=2)
+                    draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_size, photo_y + photo_size], radius=8, outline=(245, 158, 11, 255), width=3)
                     photo_drawn = True
                 except Exception as e:
                     logger.warning(f"Failed to paste reporter photo on overlay: {e}")
 
             if not photo_drawn:
                 # Fallback square avatar with initials badge
-                draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_size, photo_y + photo_size], radius=6, fill=(15, 23, 42, 245), outline=(245, 158, 11, 255), width=2)
+                draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_size, photo_y + photo_size], radius=8, fill=(15, 23, 42, 245), outline=(245, 158, 11, 255), width=3)
                 initials = "".join([w[0] for w in reporter_name.split() if w])[:2].upper() or "🎤"
                 try:
-                    draw.text((photo_x + 14, photo_y + 16), initials, fill=(245, 158, 11, 255), font=text_font)
+                    draw.text((photo_x + 22, photo_y + 24), initials, fill=(245, 158, 11, 255), font=text_font)
                 except Exception:
                     pass
 
             # B. Draw Reporter Name & District Badge (Right next to square photo)
-            badge_x = photo_x + photo_size + 10
-            badge_h = 40
+            badge_x = photo_x + photo_size + 12
+            badge_h = 46
             badge_y = photo_y + (photo_size - badge_h) // 2
-            badge_w = min(560, max(180, text_w + 32))
+            badge_w = min(560, max(180, text_w + 36))
 
             draw.rounded_rectangle([badge_x, badge_y, badge_x + badge_w, badge_y + badge_h], radius=6, fill=(15, 23, 42, 235))
             draw.rectangle([badge_x, badge_y, badge_x + 5, badge_y + badge_h], fill=(245, 158, 11, 255))
-            draw.text((badge_x + 16, badge_y + 11), rep_text, fill=(248, 250, 252, 255), font=text_font)
+            draw.text((badge_x + 16, badge_y + 13), rep_text, fill=(248, 250, 252, 255), font=text_font)
 
         # 4. Bottom Strap
         draw.rectangle([0, 645, 1280, 705], fill=(15, 23, 42, 235))

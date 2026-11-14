@@ -8156,12 +8156,38 @@ def reporter_live_view(request):
 
     setting = LiveStreamSetting.objects.first()
 
+    # Base64 Data URLs guarantee instant canvas rendering without CORS/tainting issues
+    import base64
+    channel_logo_data_url = ""
+    for logo_candidate in [
+        os.path.join(settings.BASE_DIR, 'app', 'static', 'images', 'liveimage.png'),
+        os.path.join(settings.BASE_DIR, 'app', 'static', 'images', 'prameya.png'),
+    ]:
+        if os.path.exists(logo_candidate):
+            try:
+                with open(logo_candidate, 'rb') as lf:
+                    channel_logo_data_url = "data:image/png;base64," + base64.b64encode(lf.read()).decode('ascii')
+                break
+            except Exception:
+                pass
+
+    reporter_photo_data_url = ""
+    if reporter.profile_image and hasattr(reporter.profile_image, 'path') and os.path.exists(reporter.profile_image.path):
+        try:
+            with open(reporter.profile_image.path, 'rb') as rf:
+                mime = 'image/png' if reporter.profile_image.path.lower().endswith('.png') else 'image/jpeg'
+                reporter_photo_data_url = f"data:{mime};base64," + base64.b64encode(rf.read()).decode('ascii')
+        except Exception:
+            pass
+
     context = {
         'active_page': 'reporter_live',
         'reporter': reporter,
         'active_session': active_session,
         'setting': setting,
         'district': reporter.district,
+        'channel_logo_data_url': channel_logo_data_url,
+        'reporter_photo_data_url': reporter_photo_data_url,
     }
     return render(request, 'reporter/live_broadcast.html', context)
 

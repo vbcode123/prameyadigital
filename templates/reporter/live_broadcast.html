@@ -225,6 +225,7 @@
     flex-direction: column;
     justify-content: space-between;
     padding: 16px;
+    box-sizing: border-box;
 }
 
 .overlay-header {
@@ -261,15 +262,18 @@
 }
 
 .channel-logo-tag {
-    background: rgba(11, 15, 25, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 6px 14px;
+    background: #ffffff;
+    border: 1.5px solid rgba(220, 38, 38, 0.9);
+    padding: 3px 8px;
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .overlay-logo {
-    height: 28px;
+    height: 32px;
     width: auto;
     object-fit: contain;
     display: block;
@@ -883,7 +887,7 @@
             <div class="video-container" id="videoContainer">
                 <video id="cameraPreview" autoplay playsinline muted></video>
                 <video id="uploadedVideoPreview" controls playsinline loop style="display: none; width: 100%; height: 100%; object-fit: contain; background: #000;"></video>
-                <canvas id="broadcastCanvas" width="1280" height="720" style="position: fixed; left: -9999px; top: -9999px; pointer-events: none; opacity: 0;"></canvas>
+                <canvas id="broadcastCanvas" width="1280" height="720" style="position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1;"></canvas>
 
                 <!-- Pre-Recorded Video Upload Placeholder in Viewport -->
                 <div id="uploadPlaceholder" class="camera-placeholder" style="display: none; z-index: 5;">
@@ -907,7 +911,7 @@
                             <span>LIVE</span>
                         </div>
                         <div class="channel-logo-tag">
-                            <img src="{% static 'images/liveimage.png' %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
+                            <img src="{% if channel_logo_data_url %}{{ channel_logo_data_url|safe }}{% else %}{% static 'images/liveimage.png' %}{% endif %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
                         </div>
                     </div>
 
@@ -915,7 +919,9 @@
                     <div class="overlay-strap-wrap">
                         <div class="strap-reporter-container">
                             <div class="strap-reporter-photo-frame">
-                                {% if reporter.profile_image %}
+                                {% if reporter_photo_data_url %}
+                                <img src="{{ reporter_photo_data_url|safe }}" alt="{{ reporter.name }}" class="strap-reporter-avatar">
+                                {% elif reporter.profile_image %}
                                 <img src="{{ reporter.profile_image.url }}" alt="{{ reporter.name }}" class="strap-reporter-avatar">
                                 {% else %}
                                 <div class="strap-reporter-avatar-fallback">{{ reporter.name|slice:":1"|upper }}</div>
@@ -1212,9 +1218,7 @@
 
     const headlineInput = document.getElementById('headlineInput');
     const districtInput = document.getElementById('districtInput');
-    const btnDirectLiveCamera = document.getElementById('btnDirectLiveCamera');
     const btnRequestLive = document.getElementById('btnRequestLive');
-    const btnDirectUploadLive = document.getElementById('btnDirectUploadLive');
     const btnUploadToLive = document.getElementById('btnUploadToLive');
     const cameraActionButtons = document.getElementById('cameraActionButtons');
     const uploadActionButtons = document.getElementById('uploadActionButtons');
@@ -1265,14 +1269,21 @@
     const canvasCtx = broadcastCanvas ? broadcastCanvas.getContext('2d') : null;
     let canvasAnimId = null;
 
-    // Dedicated in-memory Image for Prameya live logo
+    // Dedicated in-memory Image for Prameya live logo (Base64 data URL prevents any CORS canvas tainting)
     const channelLogoImage = new Image();
+    {% if channel_logo_data_url %}
+    channelLogoImage.src = "{{ channel_logo_data_url|safe }}";
+    {% else %}
+    channelLogoImage.crossOrigin = "anonymous";
     channelLogoImage.src = "{% static 'images/liveimage.png' %}";
+    {% endif %}
 
     // Dedicated in-memory Image for Reporter Profile Photo
     const reporterPhotoImage = new Image();
+    {% if reporter_photo_data_url %}
+    reporterPhotoImage.src = "{{ reporter_photo_data_url|safe }}";
+    {% elif reporter.profile_image %}
     reporterPhotoImage.crossOrigin = "anonymous";
-    {% if reporter.profile_image %}
     reporterPhotoImage.src = "{{ reporter.profile_image.url }}";
     {% endif %}
 
@@ -1339,169 +1350,182 @@
             canvasCtx.font = '900 16px "Inter", -apple-system, sans-serif';
             canvasCtx.fillText('LIVE', liveX + 38, liveY + 25);
 
-            // B. Top-Right: Prameya Digital Channel Logo (liveimage.png)
-            const activeLogo = (channelLogoImage && channelLogoImage.complete && channelLogoImage.naturalWidth > 0) ? channelLogoImage :
-                               ((logoImg && logoImg.complete && logoImg.naturalWidth > 0) ? logoImg : null);
+            // B. Top-Right: Prameya Digital Channel Logo
+            try {
+                let activeLogo = null;
+                if (channelLogoImage && channelLogoImage.complete && channelLogoImage.naturalWidth > 0) {
+                    activeLogo = channelLogoImage;
+                } else {
+                    const domLogo = document.getElementById('overlayLogoImg');
+                    if (domLogo && domLogo.complete && domLogo.naturalWidth > 0) {
+                        activeLogo = domLogo;
+                    }
+                }
 
-            if (activeLogo) {
-                const imgW = activeLogo.naturalWidth;
-                const imgH = activeLogo.naturalHeight;
-                const targetH = 58;
-                const targetW = Math.round((imgW / imgH) * targetH);
-                const pad = 4;
-                const boxW = targetW + (pad * 2);
-                const boxH = targetH + (pad * 2);
-                const boxX = W - boxW - 35;
-                const boxY = 28;
+                if (activeLogo) {
+                    const imgW = activeLogo.naturalWidth;
+                    const imgH = activeLogo.naturalHeight;
+                    const targetH = 58;
+                    const targetW = Math.round((imgW / imgH) * targetH);
+                    const pad = 4;
+                    const boxW = targetW + (pad * 2);
+                    const boxH = targetH + (pad * 2);
+                    const boxX = W - boxW - 35;
+                    const boxY = 28;
 
-                // White card backing with rounded corners for official Prameya red badge
-                canvasCtx.save();
-                roundRect(canvasCtx, boxX, boxY, boxW, boxH, 8);
-                canvasCtx.clip();
-                canvasCtx.fillStyle = '#ffffff';
-                canvasCtx.fillRect(boxX, boxY, boxW, boxH);
-                canvasCtx.drawImage(activeLogo, boxX + pad, boxY + pad, targetW, targetH);
-                canvasCtx.restore();
+                    // White card backing with rounded corners for official Prameya red badge
+                    canvasCtx.save();
+                    roundRect(canvasCtx, boxX, boxY, boxW, boxH, 8);
+                    canvasCtx.clip();
+                    canvasCtx.fillStyle = '#ffffff';
+                    canvasCtx.fillRect(boxX, boxY, boxW, boxH);
+                    canvasCtx.drawImage(activeLogo, boxX + pad, boxY + pad, targetW, targetH);
+                    canvasCtx.restore();
 
-                // Crisp border around the logo card
-                canvasCtx.save();
-                canvasCtx.strokeStyle = 'rgba(220, 38, 38, 0.9)';
-                canvasCtx.lineWidth = 1.5;
-                roundRect(canvasCtx, boxX, boxY, boxW, boxH, 8);
-                canvasCtx.stroke();
-                canvasCtx.restore();
-            } else {
-                const logoTagW = 180;
-                const logoTagH = 48;
-                const logoTagX = W - logoTagW - 35;
-                const logoTagY = 32;
-                canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.92)';
-                roundRect(canvasCtx, logoTagX, logoTagY, logoTagW, logoTagH, 6);
-                canvasCtx.fill();
-                canvasCtx.fillStyle = '#f8fafc';
-                canvasCtx.font = '800 15px "Inter", -apple-system, sans-serif';
-                canvasCtx.fillText('PRAMEYA DIGITAL', logoTagX + 18, logoTagY + 30);
+                    // Crisp border around the logo card
+                    canvasCtx.save();
+                    canvasCtx.strokeStyle = 'rgba(220, 38, 38, 0.9)';
+                    canvasCtx.lineWidth = 1.5;
+                    roundRect(canvasCtx, boxX, boxY, boxW, boxH, 8);
+                    canvasCtx.stroke();
+                    canvasCtx.restore();
+                } else {
+                    const logoTagW = 180;
+                    const logoTagH = 48;
+                    const logoTagX = W - logoTagW - 35;
+                    const logoTagY = 32;
+                    canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.92)';
+                    roundRect(canvasCtx, logoTagX, logoTagY, logoTagW, logoTagH, 6);
+                    canvasCtx.fill();
+                    canvasCtx.fillStyle = '#f8fafc';
+                    canvasCtx.font = '800 15px "Inter", -apple-system, sans-serif';
+                    canvasCtx.fillText('PRAMEYA DIGITAL', logoTagX + 18, logoTagY + 30);
+                }
+            } catch (logoErr) {
+                console.warn('Canvas logo draw error:', logoErr);
             }
 
             // C. Bottom: Lower-Third Strap
-            const repName = "{{ reporter.name|escapejs }}" || "Field Reporter";
-            const repDist = "{{ district|escapejs }}" || "Odisha";
-            const headline = (strapHeadline ? strapHeadline.textContent : '') || (headlineInput ? headlineInput.value : '') || "Ground Zero Live Field Report";
+            try {
+                const repName = "{{ reporter.name|escapejs }}" || "Field Reporter";
+                const repDist = "{{ district|escapejs }}" || "Odisha";
+                const headline = (strapHeadline ? strapHeadline.textContent : '') || (headlineInput ? headlineInput.value : '') || "Ground Zero Live Field Report";
 
-            // Breaking News Main Bar Dimensions
-            const strapX = 40;
-            const strapY = H - 86;
-            const strapW = W - 80; // 1200px
-            const strapH = 50;
+                // Breaking News Main Bar Dimensions
+                const strapX = 40;
+                const strapY = H - 86;
+                const strapW = W - 80; // 1200px
+                const strapH = 50;
 
-            // 1) Reporter Square Profile Photo Box & Adjacent Name/District Badge
-            const photoSize = 54;  // Prominent square photo box!
-            const photoX = 40;
-            const photoY = strapY - photoSize - 8;
+                // 1) Reporter Square Profile Photo Box & Adjacent Name/District Badge
+                const photoSize = 54;  // Prominent square photo box!
+                const photoX = 40;
+                const photoY = strapY - photoSize - 8;
 
-            // A. Draw Square Photo Box (Before Name)
-            const hasRepPhoto = (reporterPhotoImage && reporterPhotoImage.complete && reporterPhotoImage.naturalWidth > 0);
-            if (hasRepPhoto) {
-                canvasCtx.save();
-                roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
-                canvasCtx.clip();
-                const imgW = reporterPhotoImage.naturalWidth;
-                const imgH = reporterPhotoImage.naturalHeight;
-                const minD = Math.min(imgW, imgH);
-                const sx = (imgW - minD) / 2;
-                const sy = (imgH - minD) / 2;
-                canvasCtx.drawImage(reporterPhotoImage, sx, sy, minD, minD, photoX, photoY, photoSize, photoSize);
-                canvasCtx.restore();
+                // A. Draw Square Photo Box (Before Name)
+                const hasRepPhoto = (reporterPhotoImage && reporterPhotoImage.complete && reporterPhotoImage.naturalWidth > 0);
+                if (hasRepPhoto) {
+                    canvasCtx.save();
+                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                    canvasCtx.clip();
+                    const imgW = reporterPhotoImage.naturalWidth;
+                    const imgH = reporterPhotoImage.naturalHeight;
+                    const minD = Math.min(imgW, imgH);
+                    const sx = (imgW - minD) / 2;
+                    const sy = (imgH - minD) / 2;
+                    canvasCtx.drawImage(reporterPhotoImage, sx, sy, minD, minD, photoX, photoY, photoSize, photoSize);
+                    canvasCtx.restore();
 
-                // Crisp Amber border around the square photo box
-                canvasCtx.save();
-                canvasCtx.strokeStyle = '#f59e0b';
-                canvasCtx.lineWidth = 2.5;
-                roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
-                canvasCtx.stroke();
-                canvasCtx.restore();
-            } else {
-                // Fallback square photo frame with initials
-                canvasCtx.save();
-                canvasCtx.fillStyle = '#0f172a';
-                roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
-                canvasCtx.fill();
-                canvasCtx.strokeStyle = '#f59e0b';
-                canvasCtx.lineWidth = 2;
-                canvasCtx.stroke();
+                    // Crisp Amber border around the square photo box
+                    canvasCtx.save();
+                    canvasCtx.strokeStyle = '#f59e0b';
+                    canvasCtx.lineWidth = 2.5;
+                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                    canvasCtx.stroke();
+                    canvasCtx.restore();
+                } else {
+                    // Fallback square photo frame with initials
+                    canvasCtx.save();
+                    canvasCtx.fillStyle = '#0f172a';
+                    roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                    canvasCtx.fill();
+                    canvasCtx.strokeStyle = '#f59e0b';
+                    canvasCtx.lineWidth = 2;
+                    canvasCtx.stroke();
 
-                canvasCtx.fillStyle = '#f59e0b';
-                canvasCtx.font = 'bold 20px "Inter", -apple-system, sans-serif';
-                canvasCtx.textAlign = 'center';
-                canvasCtx.textBaseline = 'middle';
-                const initials = repName.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '🎤';
-                canvasCtx.fillText(initials, photoX + (photoSize / 2), photoY + (photoSize / 2));
-                canvasCtx.restore();
-            }
-
-            // B. Draw Reporter Name & District Badge (Right next to square photo)
-            const badgeX = photoX + photoSize + 10;
-            const badgeH = 40;
-            const badgeY = photoY + Math.round((photoSize - badgeH) / 2); // vertically centered
-            const repText = `${repName}` + (repDist ? `  |  ${repDist.toUpperCase()}` : '');
-            canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
-            const repTextW = canvasCtx.measureText(repText).width;
-            const badgeW = repTextW + 32;
-
-            canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.95)';
-            roundRect(canvasCtx, badgeX, badgeY, badgeW, badgeH, 6);
-            canvasCtx.fill();
-
-            // Amber Accent Line on left of badge
-            canvasCtx.fillStyle = '#f59e0b';
-            canvasCtx.fillRect(badgeX, badgeY, 5, badgeH);
-
-            // Reporter Name & District text
-            canvasCtx.fillStyle = '#f8fafc';
-            canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
-            canvasCtx.textAlign = 'left';
-            canvasCtx.textBaseline = 'middle';
-            canvasCtx.fillText(repText, badgeX + 16, badgeY + (badgeH / 2));
-
-            // 2) Breaking News Main Bar
-            // (strapX, strapY, strapW, strapH are already defined above)
-
-            // Gradient / Dark Bar
-            const grad = canvasCtx.createLinearGradient(strapX, strapY, strapX + strapW, strapY);
-            grad.addColorStop(0, '#991b1b');
-            grad.addColorStop(0.12, '#1e1b4b');
-            grad.addColorStop(0.3, '#0f172a');
-            grad.addColorStop(1, '#0f172a');
-            canvasCtx.fillStyle = grad;
-            roundRect(canvasCtx, strapX, strapY, strapW, strapH, 6);
-            canvasCtx.fill();
-            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            canvasCtx.lineWidth = 1;
-            canvasCtx.stroke();
-
-            // Red Flash Tab "BREAKING"
-            const tabW = 140;
-            canvasCtx.fillStyle = '#dc2626';
-            roundRect(canvasCtx, strapX, strapY, tabW, strapH, 6);
-            canvasCtx.fill();
-            canvasCtx.fillRect(strapX + tabW - 8, strapY, 8, strapH); // fill right corner
-
-            canvasCtx.fillStyle = '#ffffff';
-            canvasCtx.font = '900 16px "Inter", -apple-system, sans-serif';
-            canvasCtx.fillText('BREAKING', strapX + 22, strapY + 31);
-
-            // Live Headline Text
-            canvasCtx.fillStyle = '#ffffff';
-            canvasCtx.font = 'bold 17px "Inter", -apple-system, sans-serif';
-            let maxW = strapW - tabW - 35;
-            let displayTitle = headline;
-            if (canvasCtx.measureText(displayTitle).width > maxW) {
-                while (displayTitle.length > 10 && canvasCtx.measureText(displayTitle + '...').width > maxW) {
-                    displayTitle = displayTitle.slice(0, -1);
+                    canvasCtx.fillStyle = '#f59e0b';
+                    canvasCtx.font = 'bold 20px "Inter", -apple-system, sans-serif';
+                    canvasCtx.textAlign = 'center';
+                    canvasCtx.textBaseline = 'middle';
+                    const initials = repName.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '🎤';
+                    canvasCtx.fillText(initials, photoX + (photoSize / 2), photoY + (photoSize / 2));
+                    canvasCtx.restore();
                 }
-                displayTitle += '...';
+
+                // B. Draw Reporter Name & District Badge (Right next to square photo)
+                const badgeX = photoX + photoSize + 10;
+                const badgeH = 40;
+                const badgeY = photoY + Math.round((photoSize - badgeH) / 2); // vertically centered
+                const repText = `${repName}` + (repDist ? `  |  ${repDist.toUpperCase()}` : '');
+                canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
+                const repTextW = canvasCtx.measureText(repText).width;
+                const badgeW = repTextW + 32;
+
+                canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.95)';
+                roundRect(canvasCtx, badgeX, badgeY, badgeW, badgeH, 6);
+                canvasCtx.fill();
+
+                // Amber Accent Line on left of badge
+                canvasCtx.fillStyle = '#f59e0b';
+                canvasCtx.fillRect(badgeX, badgeY, 5, badgeH);
+
+                // Reporter Name & District text
+                canvasCtx.fillStyle = '#f8fafc';
+                canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
+                canvasCtx.textAlign = 'left';
+                canvasCtx.textBaseline = 'middle';
+                canvasCtx.fillText(repText, badgeX + 16, badgeY + (badgeH / 2));
+
+                // 2) Breaking News Main Bar
+                // Gradient / Dark Bar
+                const grad = canvasCtx.createLinearGradient(strapX, strapY, strapX + strapW, strapY);
+                grad.addColorStop(0, '#991b1b');
+                grad.addColorStop(0.12, '#1e1b4b');
+                grad.addColorStop(0.3, '#0f172a');
+                grad.addColorStop(1, '#0f172a');
+                canvasCtx.fillStyle = grad;
+                roundRect(canvasCtx, strapX, strapY, strapW, strapH, 6);
+                canvasCtx.fill();
+                canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                canvasCtx.lineWidth = 1;
+                canvasCtx.stroke();
+
+                // Red Flash Tab "BREAKING"
+                const tabW = 140;
+                canvasCtx.fillStyle = '#dc2626';
+                roundRect(canvasCtx, strapX, strapY, tabW, strapH, 6);
+                canvasCtx.fill();
+                canvasCtx.fillRect(strapX + tabW - 8, strapY, 8, strapH); // fill right corner
+
+                canvasCtx.fillStyle = '#ffffff';
+                canvasCtx.font = '900 16px "Inter", -apple-system, sans-serif';
+                canvasCtx.fillText('BREAKING', strapX + 22, strapY + 31);
+
+                // Live Headline Text
+                canvasCtx.fillStyle = '#ffffff';
+                canvasCtx.font = 'bold 17px "Inter", -apple-system, sans-serif';
+                let maxW = strapW - tabW - 35;
+                let displayTitle = headline;
+                if (canvasCtx.measureText(displayTitle).width > maxW) {
+                    while (displayTitle.length > 10 && canvasCtx.measureText(displayTitle + '...').width > maxW) {
+                        displayTitle = displayTitle.slice(0, -1);
+                    }
+                    displayTitle += '...';
+                }
+                canvasCtx.fillText(displayTitle, strapX + tabW + 20, strapY + 31);
+            } catch (strapErr) {
+                console.warn('Canvas strap draw error:', strapErr);
             }
-            canvasCtx.fillText(displayTitle, strapX + tabW + 20, strapY + 31);
         }
     }
 
@@ -1517,11 +1541,16 @@
     }
 
     function renderLoop() {
-        drawCanvasComposite();
-        if (sessionStatus === 'live' || mediaStream) {
-            canvasAnimId = requestAnimationFrame(renderLoop);
-        } else {
-            canvasAnimId = null;
+        try {
+            drawCanvasComposite();
+        } catch (loopErr) {
+            console.error('renderLoop draw error:', loopErr);
+        } finally {
+            if (sessionStatus === 'live' || mediaStream) {
+                canvasAnimId = requestAnimationFrame(renderLoop);
+            } else {
+                canvasAnimId = null;
+            }
         }
     }
 
@@ -1767,58 +1796,6 @@
         });
     }
 
-    // Direct Live Broadcast (Camera Mode - Instant Go Live to YouTube)
-    if (btnDirectLiveCamera) {
-        btnDirectLiveCamera.addEventListener('click', async () => {
-            const headline = headlineInput.value.trim();
-            const district = districtInput.value.trim();
-
-            if (!headline) {
-                alert('Please enter a live story headline.');
-                return;
-            }
-
-            btnDirectLiveCamera.disabled = true;
-            btnDirectLiveCamera.innerHTML = '<span>⏳ Starting YouTube Live Broadcast...</span>';
-
-            const formData = new FormData();
-            formData.append('headline', headline);
-            formData.append('district', district);
-            formData.append('broadcast_type', 'camera');
-            formData.append('direct_live', '1');
-            formData.append('destination', 'youtube');
-
-            try {
-                const res = await fetch('/api/live/request/', {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrftoken },
-                    body: formData
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    activeSessionId = data.session_id;
-                    strapHeadline.textContent = headline;
-                    if (data.status === 'live') {
-                        transitionToLive(data.destination_display || 'YouTube Live', data.started_at, false);
-                    } else {
-                        pendingHeadlineText.textContent = headline;
-                        transitionToPending();
-                    }
-                    startPolling();
-                } else {
-                    alert('Broadcast launch failed: ' + (data.error || 'Unknown error'));
-                    btnDirectLiveCamera.disabled = false;
-                    btnDirectLiveCamera.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg><span>🔴 GO LIVE NOW (ON YOUTUBE)</span>';
-                }
-            } catch (err) {
-                alert('Network error while launching live broadcast.');
-                btnDirectLiveCamera.disabled = false;
-                btnDirectLiveCamera.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg><span>🔴 GO LIVE NOW (ON YOUTUBE)</span>';
-            }
-        });
-    }
-
     // Live Video Upload Handler with Real-Time Percentage (%) Progress
     function uploadVideoWithProgress() {
         const headline = headlineInput.value.trim();
@@ -1927,19 +1904,25 @@
         btnUploadToLive.addEventListener('click', uploadVideoWithProgress);
     }
 
-    // Request Live Broadcast (Camera Mode - Desk Approval)
+    // Request Live Broadcast (Camera Mode - Desk Approval Required)
     if (btnRequestLive) {
         btnRequestLive.addEventListener('click', async () => {
+            if (!mediaStream) {
+                alert('Please click "Enable Camera & Mic" first before requesting live broadcast approval.');
+                return;
+            }
+
             const headline = headlineInput.value.trim();
             const district = districtInput.value.trim();
 
             if (!headline) {
                 alert('Please enter a live story headline.');
+                headlineInput.focus();
                 return;
             }
 
             btnRequestLive.disabled = true;
-            btnRequestLive.innerHTML = 'Sending Request...';
+            btnRequestLive.innerHTML = '<span class="pulse-beacon" style="width: 8px; height: 8px; display: inline-block; margin-right: 6px;"></span><span>Submitting Request to Desk...</span>';
 
             const formData = new FormData();
             formData.append('headline', headline);
@@ -1962,15 +1945,20 @@
                     startPolling();
                 } else {
                     alert('Request failed: ' + (data.error || 'Unknown error'));
-                    btnRequestLive.disabled = false;
-                    btnRequestLive.innerHTML = '<span>📡 Request Social Media Approval</span>';
+                    resetCameraButtons();
                 }
             } catch (err) {
                 alert('Network error while requesting live broadcast.');
-                btnRequestLive.disabled = false;
-                btnRequestLive.innerHTML = '<span>📡 Request Social Media Approval</span>';
+                resetCameraButtons();
             }
         });
+    }
+
+    function resetCameraButtons() {
+        if (btnRequestLive) {
+            btnRequestLive.disabled = false;
+            btnRequestLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg><span>📡 REQUEST SOCIAL MEDIA APPROVAL TO GO LIVE</span>';
+        }
     }
 
     // Cancel Request
@@ -2005,14 +1993,8 @@
         prompterBanner.style.display = 'none';
         tvGraphicsOverlay.style.display = 'none';
 
-        if (btnDirectLiveCamera) {
-            btnDirectLiveCamera.disabled = false;
-            btnDirectLiveCamera.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg><span>🔴 GO LIVE NOW (ON YOUTUBE)</span>';
-        }
-        if (btnRequestLive) {
-            btnRequestLive.disabled = false;
-            btnRequestLive.innerHTML = '<span>📡 Request Social Media Approval</span>';
-        }
+        resetCameraButtons();
+        resetUploadButtons();
         if (btnUploadToLive) {
             btnUploadToLive.disabled = false;
             btnUploadToLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>📤 UPLOAD FOR SOCIAL MEDIA APPROVAL</span>';
@@ -2234,7 +2216,7 @@
         startCanvasCompositor();
 
         // Composite stream with TV graphics overlays burned directly into the video
-        let streamToRecord = mediaStream;
+        let streamToRecord = null;
         if (broadcastCanvas && typeof broadcastCanvas.captureStream === 'function') {
             try {
                 const canvasStream = broadcastCanvas.captureStream(30);
@@ -2247,6 +2229,9 @@
                 console.warn('Canvas captureStream error, fallback to raw camera:', err);
                 streamToRecord = mediaStream;
             }
+        }
+        if (!streamToRecord) {
+            streamToRecord = mediaStream;
         }
 
         try {

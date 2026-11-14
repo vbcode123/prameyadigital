@@ -8156,27 +8156,12 @@ def reporter_live_view(request):
 
     setting = LiveStreamSetting.objects.first()
 
-    # Pre-encode official live logo into Base64 for instant zero-latency canvas rendering
-    channel_logo_b64 = ""
-    try:
-        from django.conf import settings as dj_settings
-        logo_path = os.path.join(dj_settings.BASE_DIR, 'app', 'static', 'images', 'liveimage.png')
-        if not os.path.exists(logo_path):
-            logo_path = os.path.join(dj_settings.BASE_DIR, 'app', 'static', 'images', 'prameya.png')
-        if os.path.exists(logo_path):
-            import base64
-            with open(logo_path, 'rb') as lf:
-                channel_logo_b64 = "data:image/png;base64," + base64.b64encode(lf.read()).decode('ascii')
-    except Exception as e:
-        logger.warning(f"Error encoding live logo base64: {e}")
-
     context = {
         'active_page': 'reporter_live',
         'reporter': reporter,
         'active_session': active_session,
         'setting': setting,
         'district': reporter.district,
-        'channel_logo_b64': channel_logo_b64,
     }
     return render(request, 'reporter/live_broadcast.html', context)
 
@@ -8271,6 +8256,8 @@ def api_reporter_request_live(request):
         recorded_file = request.FILES.get('video_file')
         if not recorded_file:
             return JsonResponse({'success': False, 'error': 'Please select an MP4 video file to upload.'}, status=400)
+        # Pre-recorded videos always require Social Media Desk approval before going live
+        direct_live = False
 
     # Close any stale sessions for this reporter
     LiveBroadcastSession.objects.filter(reporter=reporter, status__in=['pending', 'approved', 'live']).update(
@@ -8302,6 +8289,7 @@ def api_reporter_request_live(request):
         from .streaming_relay import relay_manager
         if broadcast_type == 'recorded' and session.recorded_file:
             rep_name = reporter.name if reporter else ""
+            rep_photo = reporter.profile_image.path if (reporter and reporter.profile_image and hasattr(reporter.profile_image, 'path') and os.path.exists(reporter.profile_image.path)) else None
             relay_started, relay_msg = relay_manager.start_recorded_session(
                 session_id=session.pk,
                 video_path=session.recorded_file.path,
@@ -8309,7 +8297,8 @@ def api_reporter_request_live(request):
                 overlay_graphics=session.overlay_graphics,
                 headline=session.headline,
                 district=session.district,
-                reporter_name=rep_name
+                reporter_name=rep_name,
+                reporter_photo_path=rep_photo
             )
         else:
             relay_started, relay_msg = relay_manager.start_session(session.pk, destination)
@@ -8561,6 +8550,7 @@ def api_social_approve_live(request):
             from .streaming_relay import relay_manager
             if session.broadcast_type == 'recorded' and session.recorded_file:
                 rep_name = session.reporter.name if session.reporter else ""
+                rep_photo = session.reporter.profile_image.path if (session.reporter and session.reporter.profile_image and hasattr(session.reporter.profile_image, 'path') and os.path.exists(session.reporter.profile_image.path)) else None
                 relay_started, relay_msg = relay_manager.start_recorded_session(
                     session_id=session.pk,
                     video_path=session.recorded_file.path,
@@ -8568,7 +8558,8 @@ def api_social_approve_live(request):
                     overlay_graphics=session.overlay_graphics,
                     headline=session.headline,
                     district=session.district,
-                    reporter_name=rep_name
+                    reporter_name=rep_name,
+                    reporter_photo_path=rep_photo
                 )
             else:
                 relay_started, relay_msg = relay_manager.start_session(session.pk, destination)

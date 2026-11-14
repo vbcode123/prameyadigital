@@ -4,333 +4,7 @@
 {% block title %}Field Live Broadcast Studio — Prameya Digital{% endblock %}
 {% block page_title %}🔴 Live Broadcast Studio{% endblock %}
 
-{% block content %}
-<div class="live-studio-container">
-    {% csrf_token %}
-    <!-- Studio Header & Status Strip -->
-    <div class="studio-topbar">
-        <div class="studio-status-wrap">
-            <span id="liveStatusBadge" class="status-pill status-standby">
-                <span class="pulse-dot"></span>
-                <span id="liveStatusText">STUDIO STANDBY</span>
-            </span>
-            <div id="liveTimerWrap" class="live-timer" style="display: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span id="liveTimerText">00:00:00</span>
-            </div>
-            <div id="destinationBadge" class="destination-badge" style="display: none;">
-                <span id="destinationText">YouTube Live</span>
-            </div>
-        </div>
-
-        <div class="studio-reporter-meta">
-            <span class="meta-item"><strong>Reporter:</strong> {{ reporter.name }} ({{ reporter.reporter_id }})</span>
-            <span class="meta-item"><strong>District:</strong> <span class="district-chip">{{ district }}</span></span>
-        </div>
-    </div>
-
-    <!-- Live Teleprompter / Talkback Banner (Hidden until desk sends cue or goes live) -->
-    <div id="prompterBanner" class="prompter-banner" style="display: none;">
-        <div class="prompter-label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-            </svg>
-            DESK TALKBACK:
-        </div>
-        <div id="prompterMessage" class="prompter-text">Stand by for on-air cue...</div>
-    </div>
-
-    <!-- Main Viewport Grid -->
-    <div class="studio-grid">
-        <!-- Video Feed & On-Air Canvas Box -->
-        <div class="viewport-card">
-            <div class="video-container" id="videoContainer">
-                <video id="cameraPreview" autoplay playsinline muted></video>
-                <video id="uploadedVideoPreview" controls playsinline loop style="display: none; width: 100%; height: 100%; object-fit: contain; background: #000;"></video>
-                <canvas id="broadcastCanvas" width="1280" height="720" style="position: fixed; left: -9999px; top: -9999px; pointer-events: none; opacity: 0;"></canvas>
-
-                <!-- Pre-Recorded Video Upload Placeholder in Viewport -->
-                <div id="uploadPlaceholder" class="camera-placeholder" style="display: none; z-index: 5;">
-                    <div class="placeholder-content">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                        <h4 style="color: #f1f5f9; font-size: 15px; margin: 6px 0 2px 0;">Pre-Recorded Video Mode</h4>
-                        <p style="font-size: 12px; color: #94a3b8; max-width: 380px;">Webcam is turned OFF. Choose an MP4 / WebM video file on the right to preview and stream live to YouTube!</p>
-                    </div>
-                </div>
-
-                <!-- On-Screen TV Graphics Overlay (Visible when Live) -->
-                <div id="tvGraphicsOverlay" class="tv-overlay" style="display: none;">
-                    <!-- Top Channel Bug -->
-                    <div class="overlay-header">
-                        <div class="live-tag">
-                            <span class="live-dot"></span>
-                            <span>LIVE</span>
-                        </div>
-                        <div class="channel-logo-tag">
-                            <img src="{{ channel_logo_b64|default:'/static/images/liveimage.png' }}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
-                        </div>
-                    </div>
-
-                    <!-- Bottom Lower Third Strap -->
-                    <div class="overlay-strap-wrap">
-                        <div class="strap-reporter-badge">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <circle cx="12" cy="7" r="4"></circle>
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            </svg>
-                            <span id="strapReporterName">{{ reporter.name }}</span> | <span id="strapDistrict">{{ district }}</span>
-                        </div>
-                        <div class="strap-main-bar">
-                            <div class="strap-flash-tab">BREAKING</div>
-                            <div id="strapHeadline" class="strap-headline-text">Ground Zero Live Field Report</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Camera Permission / Loading Placeholder -->
-                <div id="cameraPlaceholder" class="camera-placeholder">
-                    <div class="placeholder-content">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8">
-                            <path d="M23 7l-7 5 7 5V7z"></path>
-                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                        </svg>
-                        <p class="mt-2">Camera initializing or permission required</p>
-                        <button type="button" id="btnRequestCamera" class="btn-primary-action btn-sm">
-                            Enable Camera & Mic
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- In-Studio Quick Camera Controls -->
-            <div class="camera-control-bar" id="cameraControlBar">
-                <button type="button" id="btnFlipCamera" class="tool-btn" title="Flip Camera">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8h3l-4 5-4-5h3c0-5.523 4.477-10 10-10s10 4.477 10 10z"></path>
-                        <path d="M4 14c0 4.418 3.582 8 8 8s8-3.582 8-8h-3l4-5 4 5h-3c0 5.523-4.477 10-10 10s-10-4.477-10-10z"></path>
-                    </svg>
-                    <span>Flip Lens</span>
-                </button>
-                <button type="button" id="btnMuteAudio" class="tool-btn" title="Toggle Mic">
-                    <svg id="micIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="8" y1="23" x2="16" y2="23"></line>
-                    </svg>
-                    <span id="micLabel">Mute</span>
-                </button>
-                <div class="audio-level-indicator" title="Audio Input Level">
-                    <div id="audioMeterBar" class="audio-bar"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Broadcast Control & Dispatch Panel -->
-        <div class="control-card">
-            <!-- Setup Form (Visible during Standby) -->
-            <div id="setupSection" class="panel-section">
-                <h3 class="section-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                    Live Broadcast Setup
-                </h3>
-                <p class="section-desc">Choose whether to go live via camera or upload a recorded video for live streaming.</p>
-
-                <!-- Live Mode Tabs -->
-                <div class="live-mode-tabs" style="display: flex; gap: 8px; margin-bottom: 6px;">
-                    <button type="button" class="mode-tab-btn active" id="tabLiveCamera" onclick="setLiveMode('camera')">
-                        🎥 Camera Live
-                    </button>
-                    <button type="button" class="mode-tab-btn" id="tabLiveUpload" onclick="setLiveMode('upload')">
-                        📁 Upload to Live
-                    </button>
-                </div>
-
-                <!-- Video File Input (Only in Upload Mode) -->
-                <div class="form-group" id="uploadVideoGroup" style="display: none; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1.5px dashed #0284c7;">
-                    <label for="recordedVideoFileInput" class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #0284c7;">Attach Recorded Video (MP4 / WebM) *</span>
-                        <span id="fileSelectedBadge" style="font-size: 11px; color: #10b981; font-weight: 800; display: none;">✔ File Selected</span>
-                    </label>
-                    <input type="file" id="recordedVideoFileInput" accept="video/mp4,video/webm,video/quicktime,video/mkv" class="form-input" style="background: #fff; padding: 8px; cursor: pointer; border-color: #cbd5e1;">
-                    <small style="color: #64748b; font-size: 11px; display: block; margin-top: 4px;">Desk will approve and stream this video directly to YouTube Live with Prameya TV graphics!</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="headlineInput" class="form-label">Live Story Headline (Odisha / English) *</label>
-                    <input type="text" id="headlineInput" class="form-input" 
-                        value="Ground Zero Live Field Coverage from {{ district }}"
-                        placeholder="e.g. Cuttack flood relief live operations update...">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group flex-1">
-                        <label for="districtInput" class="form-label">District Location</label>
-                        <input type="text" id="districtInput" class="form-input" value="{{ district }}" readonly>
-                    </div>
-                    <div class="form-group flex-1">
-                        <label class="form-label">Broadcast Channel</label>
-                        <div class="channel-pill">
-                            <span class="live-badge-sm">Prameya Digital</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Camera Live Action Buttons -->
-                <div id="cameraActionButtons">
-                    <button type="button" id="btnDirectLiveCamera" class="btn-broadcast-start" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                            <circle cx="12" cy="12" r="2"></circle>
-                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
-                        </svg>
-                        <span>🔴 GO LIVE NOW (ON YOUTUBE)</span>
-                    </button>
-                    <button type="button" id="btnRequestLive" class="btn-desk-request">
-                        <span>📡 Request Social Media Approval</span>
-                    </button>
-                </div>
-
-                <!-- Dedicated Upload to Live Action Buttons -->
-                <div id="uploadActionButtons" style="display: none;">
-                    <button type="button" id="btnDirectUploadLive" class="btn-broadcast-start" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                        <span>⚡ UPLOAD & GO LIVE NOW (ON YOUTUBE)</span>
-                    </button>
-                    <button type="button" id="btnUploadToLive" class="btn-desk-request">
-                        <span>📤 Upload for Social Media Approval</span>
-                    </button>
-
-                    <!-- Real-Time Upload Progress Card with Percentage -->
-                    <div id="uploadProgressCard" style="display: none; margin-top: 14px; padding: 16px; background: #0f172a; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.35);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="pulse-beacon" style="width: 10px; height: 10px; background: #38bdf8;"></span>
-                                <span id="uploadProgressStatusText" style="font-weight: 700; font-size: 13px; color: #f1f5f9;">Uploading Video to Server...</span>
-                            </div>
-                            <span id="uploadProgressPercentBadge" style="font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace;">0%</span>
-                        </div>
-
-                        <!-- Animated Progress Track & Bar -->
-                        <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden;">
-                            <div id="uploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0284c7 0%, #38bdf8 50%, #10b981 100%); transition: width 0.15s ease-out; border-radius: 6px;"></div>
-                        </div>
-
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: #94a3b8;">
-                            <span id="uploadProgressSizeText">0 MB / 0 MB</span>
-                            <span id="uploadProgressEtaText" style="color: #38bdf8; font-weight: 600;">Processing...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pending Desk Approval State (Radar Animation) -->
-            <div id="pendingSection" class="panel-section" style="display: none;">
-                <div class="radar-box">
-                    <div class="radar-circle">
-                        <div class="radar-sweep"></div>
-                    </div>
-                    <h4>Request Dispatched to Social Media Desk</h4>
-                    <p class="text-muted">Waiting for Central Desk authorization & channel routing. Keep your camera focused on the field subject.</p>
-                    <div class="pending-info">
-                        <strong>Headline:</strong> <span id="pendingHeadlineText"></span>
-                    </div>
-                    <button type="button" id="btnCancelRequest" class="btn-cancel-request">Cancel Request</button>
-                </div>
-            </div>
-
-            <!-- Active On-Air Broadcast State -->
-            <div id="liveSection" class="panel-section" style="display: none;">
-                <div class="on-air-banner">
-                    <span class="pulse-beacon"></span>
-                    <div>
-                        <div class="beacon-title">YOU ARE ON AIR!</div>
-                        <div class="beacon-sub">Stream is being transmitted to Prameya Digital viewers.</div>
-                    </div>
-                </div>
-
-                <div class="talkback-quick-actions">
-                    <div class="label-heading">Real-Time Desk Instructions:</div>
-                    <div id="activeCueBox" class="cue-box">
-                        "Broadcast in progress. Maintain steady frame."
-                    </div>
-                </div>
-
-                <!-- RTMP Live Streaming Pipeline Status -->
-                <div id="relayStatusBox" style="margin: 12px 0; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; font-size: 13px; color: #10b981; display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="relayHealthDot" style="display: inline-block; width: 9px; height: 9px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
-                        <span><strong>RTMP Feed:</strong> <span id="relayStatusText">Transmitting to Live Server...</span></span>
-                    </div>
-                    <span id="relayPacketCountBadge" style="background: rgba(16, 185, 129, 0.2); padding: 2px 8px; border-radius: 12px; font-weight: bold; font-family: monospace;">0 chunks</span>
-                </div>
-
-                <button type="button" id="btnEndBroadcast" class="btn-broadcast-stop">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
-                    </svg>
-                    <span>⏹ END LIVE BROADCAST</span>
-                </button>
-            </div>
-
-            <!-- Broadcast Ended / Archive Upload State -->
-            <div id="archiveSection" class="panel-section" style="display: none;">
-                <div class="archive-box">
-                    <div class="archive-icon">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                    </div>
-                    <h4>Live Broadcast Completed!</h4>
-                    <p id="archiveStatusText" class="text-muted">Saving on-air recording to Newsroom Media Archive for Byte extraction...</p>
-                    <div id="archiveProgressBar" class="progress-bar-wrap">
-                        <div class="progress-bar-fill"></div>
-                    </div>
-                    <div class="archive-actions mt-3">
-                        <button type="button" id="btnStartNewLive" class="btn-primary-action">
-                            Start Another Live
-                        </button>
-                        <a href="{% url 'reporter_dashboard' %}" class="btn-secondary-action">
-                            Return to Dashboard
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tips for Field Live -->
-            <div class="tips-box">
-                <div class="tips-title">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    <span>Field Broadcasting Guidelines</span>
-                </div>
-                <ul class="tips-list">
-                    <li>Hold mobile in <strong>Landscape (16:9)</strong> for full broadcast TV aspect.</li>
-                    <li>Ensure 4G/5G signal indicator shows at least 3 bars.</li>
-                    <li>Social Media Desk can push talkback prompts to your screen at any moment.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block extra_head %}
 <style>
 /* Modern Broadcast Studio Styles */
 .live-studio-container {
@@ -607,18 +281,84 @@
     gap: 4px;
 }
 
+.strap-reporter-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    align-self: flex-start;
+}
+
+.strap-reporter-photo-frame {
+    width: 54px;
+    height: 54px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2.5px solid #f59e0b;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    background: #0f172a;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.strap-reporter-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.strap-reporter-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #f59e0b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 20px;
+}
+
 .strap-reporter-badge {
     background: rgba(11, 15, 25, 0.94);
     color: #f1f5f9;
-    border-left: 4px solid #f59e0b;
-    padding: 4px 12px;
-    font-size: 12px;
-    font-weight: 700;
-    align-self: flex-start;
-    border-radius: 0 6px 6px 0;
+    border-left: 5px solid #f59e0b;
+    padding: 8px 16px 8px 12px;
+    align-self: center;
+    border-radius: 0 8px 8px 0;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(6px);
+}
+
+.strap-reporter-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.strap-reporter-name {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+}
+
+.strap-divider {
+    color: #f59e0b;
+    font-weight: 800;
+}
+
+.strap-district-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fbbf24;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .strap-main-bar {
@@ -1096,6 +836,343 @@
 </style>
 {% endblock %}
 
+{% block content %}
+<div class="live-studio-container">
+    {% csrf_token %}
+    <!-- Studio Header & Status Strip -->
+    <div class="studio-topbar">
+        <div class="studio-status-wrap">
+            <span id="liveStatusBadge" class="status-pill status-standby">
+                <span class="pulse-dot"></span>
+                <span id="liveStatusText">STUDIO STANDBY</span>
+            </span>
+            <div id="liveTimerWrap" class="live-timer" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span id="liveTimerText">00:00:00</span>
+            </div>
+            <div id="destinationBadge" class="destination-badge" style="display: none;">
+                <span id="destinationText">YouTube Live</span>
+            </div>
+        </div>
+
+        <div class="studio-reporter-meta">
+            <span class="meta-item"><strong>Reporter:</strong> {{ reporter.name }} ({{ reporter.reporter_id }})</span>
+            <span class="meta-item"><strong>District:</strong> <span class="district-chip">{{ district }}</span></span>
+        </div>
+    </div>
+
+    <!-- Live Teleprompter / Talkback Banner (Hidden until desk sends cue or goes live) -->
+    <div id="prompterBanner" class="prompter-banner" style="display: none;">
+        <div class="prompter-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            DESK TALKBACK:
+        </div>
+        <div id="prompterMessage" class="prompter-text">Stand by for on-air cue...</div>
+    </div>
+
+    <!-- Main Viewport Grid -->
+    <div class="studio-grid">
+        <!-- Video Feed & On-Air Canvas Box -->
+        <div class="viewport-card">
+            <div class="video-container" id="videoContainer">
+                <video id="cameraPreview" autoplay playsinline muted></video>
+                <video id="uploadedVideoPreview" controls playsinline loop style="display: none; width: 100%; height: 100%; object-fit: contain; background: #000;"></video>
+                <canvas id="broadcastCanvas" width="1280" height="720" style="position: fixed; left: -9999px; top: -9999px; pointer-events: none; opacity: 0;"></canvas>
+
+                <!-- Pre-Recorded Video Upload Placeholder in Viewport -->
+                <div id="uploadPlaceholder" class="camera-placeholder" style="display: none; z-index: 5;">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <h4 style="color: #f1f5f9; font-size: 15px; margin: 6px 0 2px 0;">Pre-Recorded Video Mode</h4>
+                        <p style="font-size: 12px; color: #94a3b8; max-width: 380px;">Webcam is turned OFF. Choose an MP4 / WebM video file on the right to preview and stream live to YouTube!</p>
+                    </div>
+                </div>
+
+                <!-- On-Screen TV Graphics Overlay (Visible when Live) -->
+                <div id="tvGraphicsOverlay" class="tv-overlay" style="display: none;">
+                    <!-- Top Channel Bug -->
+                    <div class="overlay-header">
+                        <div class="live-tag">
+                            <span class="live-dot"></span>
+                            <span>LIVE</span>
+                        </div>
+                        <div class="channel-logo-tag">
+                            <img src="{% static 'images/liveimage.png' %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
+                        </div>
+                    </div>
+
+                    <!-- Bottom Lower Third Strap -->
+                    <div class="overlay-strap-wrap">
+                        <div class="strap-reporter-container">
+                            <div class="strap-reporter-photo-frame">
+                                {% if reporter.profile_image %}
+                                <img src="{{ reporter.profile_image.url }}" alt="{{ reporter.name }}" class="strap-reporter-avatar">
+                                {% else %}
+                                <div class="strap-reporter-avatar-fallback">{{ reporter.name|slice:":1"|upper }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="strap-reporter-badge">
+                                <div class="strap-reporter-info">
+                                    <span id="strapReporterName" class="strap-reporter-name">{{ reporter.name }}</span>
+                                    <span class="strap-divider">|</span>
+                                    <span id="strapDistrict" class="strap-district-text">{{ district }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="strap-main-bar">
+                            <div class="strap-flash-tab">BREAKING</div>
+                            <div id="strapHeadline" class="strap-headline-text">Ground Zero Live Field Report</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Permission / Loading Placeholder -->
+                <div id="cameraPlaceholder" class="camera-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8">
+                            <path d="M23 7l-7 5 7 5V7z"></path>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                        </svg>
+                        <p class="mt-2">Camera initializing or permission required</p>
+                        <button type="button" id="btnRequestCamera" class="btn-primary-action btn-sm">
+                            Enable Camera & Mic
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- In-Studio Quick Camera Controls -->
+            <div class="camera-control-bar" id="cameraControlBar">
+                <button type="button" id="btnFlipCamera" class="tool-btn" title="Flip Camera">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8h3l-4 5-4-5h3c0-5.523 4.477-10 10-10s10 4.477 10 10z"></path>
+                        <path d="M4 14c0 4.418 3.582 8 8 8s8-3.582 8-8h-3l4-5 4 5h-3c0 5.523-4.477 10-10 10s-10-4.477-10-10z"></path>
+                    </svg>
+                    <span>Flip Lens</span>
+                </button>
+                <button type="button" id="btnMuteAudio" class="tool-btn" title="Toggle Mic">
+                    <svg id="micIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                    <span id="micLabel">Mute</span>
+                </button>
+                <div class="audio-level-indicator" title="Audio Input Level">
+                    <div id="audioMeterBar" class="audio-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Broadcast Control & Dispatch Panel -->
+        <div class="control-card">
+            <!-- Setup Form (Visible during Standby) -->
+            <div id="setupSection" class="panel-section">
+                <h3 class="section-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Live Broadcast Setup
+                </h3>
+                <p class="section-desc">Choose whether to go live via camera or upload a recorded video for live streaming.</p>
+
+                <!-- Live Mode Tabs -->
+                <div class="live-mode-tabs" style="display: flex; gap: 8px; margin-bottom: 6px;">
+                    <button type="button" class="mode-tab-btn active" id="tabLiveCamera" onclick="setLiveMode('camera')">
+                        🎥 Camera Live
+                    </button>
+                    <button type="button" class="mode-tab-btn" id="tabLiveUpload" onclick="setLiveMode('upload')">
+                        📁 Upload to Live
+                    </button>
+                </div>
+
+                <!-- Video File Input (Only in Upload Mode) -->
+                <div class="form-group" id="uploadVideoGroup" style="display: none; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1.5px dashed #0284c7;">
+                    <label for="recordedVideoFileInput" class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0284c7;">Attach Recorded Video (MP4 / WebM) *</span>
+                        <span id="fileSelectedBadge" style="font-size: 11px; color: #10b981; font-weight: 800; display: none;">✔ File Selected</span>
+                    </label>
+                    <input type="file" id="recordedVideoFileInput" accept="video/mp4,video/webm,video/quicktime,video/mkv" class="form-input" style="background: #fff; padding: 8px; cursor: pointer; border-color: #cbd5e1;">
+                    <small style="color: #64748b; font-size: 11px; display: block; margin-top: 4px;">Desk will approve and stream this video directly to YouTube Live with Prameya TV graphics!</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="headlineInput" class="form-label">Live Story Headline (Odisha / English) *</label>
+                    <input type="text" id="headlineInput" class="form-input" 
+                        value="Ground Zero Live Field Coverage from {{ district }}"
+                        placeholder="e.g. Cuttack flood relief live operations update...">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="districtInput" class="form-label">District Location</label>
+                        <input type="text" id="districtInput" class="form-input" value="{{ district }}" readonly>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label">Broadcast Channel</label>
+                        <div class="channel-pill">
+                            <span class="live-badge-sm">Prameya Digital</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Live Action Buttons -->
+                <div id="cameraActionButtons">
+                    <button type="button" id="btnDirectLiveCamera" class="btn-broadcast-start" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+                        </svg>
+                        <span>🔴 GO LIVE NOW (ON YOUTUBE)</span>
+                    </button>
+                    <button type="button" id="btnRequestLive" class="btn-desk-request">
+                        <span>📡 Request Social Media Approval</span>
+                    </button>
+                </div>
+
+                <!-- Dedicated Upload to Live Action Buttons -->
+                <div id="uploadActionButtons" style="display: none;">
+                    <button type="button" id="btnUploadToLive" class="btn-broadcast-start" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>📤 UPLOAD FOR SOCIAL MEDIA APPROVAL</span>
+                    </button>
+                    <div style="margin-top: 10px; font-size: 12px; color: #64748b; text-align: center; line-height: 1.4;">
+                        <span style="color: #0284c7; font-weight: 700;">Desk Approval Workflow:</span> Video will be uploaded and sent to Social Media Desk. Broadcast will go LIVE to YouTube once approved.
+                    </div>
+
+                    <!-- Real-Time Upload Progress Card with Percentage -->
+                    <div id="uploadProgressCard" style="display: none; margin-top: 14px; padding: 16px; background: #0f172a; border: 1.5px solid rgba(56, 189, 248, 0.4); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.35);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="pulse-beacon" style="width: 10px; height: 10px; background: #38bdf8;"></span>
+                                <span id="uploadProgressStatusText" style="font-weight: 700; font-size: 13px; color: #f1f5f9;">Uploading Video to Server...</span>
+                            </div>
+                            <span id="uploadProgressPercentBadge" style="font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace;">0%</span>
+                        </div>
+
+                        <!-- Animated Progress Track & Bar -->
+                        <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.12); border-radius: 6px; overflow: hidden;">
+                            <div id="uploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0284c7 0%, #38bdf8 50%, #10b981 100%); transition: width 0.15s ease-out; border-radius: 6px;"></div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: #94a3b8;">
+                            <span id="uploadProgressSizeText">0 MB / 0 MB</span>
+                            <span id="uploadProgressEtaText" style="color: #38bdf8; font-weight: 600;">Processing...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Desk Approval State (Radar Animation) -->
+            <div id="pendingSection" class="panel-section" style="display: none;">
+                <div class="radar-box">
+                    <div class="radar-circle">
+                        <div class="radar-sweep"></div>
+                    </div>
+                    <h4>Request Dispatched to Social Media Desk</h4>
+                    <p class="text-muted">Waiting for Central Desk authorization & channel routing. Keep your camera focused on the field subject.</p>
+                    <div class="pending-info">
+                        <strong>Headline:</strong> <span id="pendingHeadlineText"></span>
+                    </div>
+                    <button type="button" id="btnCancelRequest" class="btn-cancel-request">Cancel Request</button>
+                </div>
+            </div>
+
+            <!-- Active On-Air Broadcast State -->
+            <div id="liveSection" class="panel-section" style="display: none;">
+                <div class="on-air-banner">
+                    <span class="pulse-beacon"></span>
+                    <div>
+                        <div class="beacon-title">YOU ARE ON AIR!</div>
+                        <div class="beacon-sub">Stream is being transmitted to Prameya Digital viewers.</div>
+                    </div>
+                </div>
+
+                <div class="talkback-quick-actions">
+                    <div class="label-heading">Real-Time Desk Instructions:</div>
+                    <div id="activeCueBox" class="cue-box">
+                        "Broadcast in progress. Maintain steady frame."
+                    </div>
+                </div>
+
+                <!-- RTMP Live Streaming Pipeline Status -->
+                <div id="relayStatusBox" style="margin: 12px 0; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; font-size: 13px; color: #10b981; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="relayHealthDot" style="display: inline-block; width: 9px; height: 9px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                        <span><strong>RTMP Feed:</strong> <span id="relayStatusText">Transmitting to Live Server...</span></span>
+                    </div>
+                    <span id="relayPacketCountBadge" style="background: rgba(16, 185, 129, 0.2); padding: 2px 8px; border-radius: 12px; font-weight: bold; font-family: monospace;">0 chunks</span>
+                </div>
+
+                <button type="button" id="btnEndBroadcast" class="btn-broadcast-stop">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+                    </svg>
+                    <span>⏹ END LIVE BROADCAST</span>
+                </button>
+            </div>
+
+            <!-- Broadcast Ended / Archive Upload State -->
+            <div id="archiveSection" class="panel-section" style="display: none;">
+                <div class="archive-box">
+                    <div class="archive-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <h4>Live Broadcast Completed!</h4>
+                    <p id="archiveStatusText" class="text-muted">Saving on-air recording to Newsroom Media Archive for Byte extraction...</p>
+                    <div id="archiveProgressBar" class="progress-bar-wrap">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                    <div class="archive-actions mt-3">
+                        <button type="button" id="btnStartNewLive" class="btn-primary-action">
+                            Start Another Live
+                        </button>
+                        <a href="{% url 'reporter_dashboard' %}" class="btn-secondary-action">
+                            Return to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips for Field Live -->
+            <div class="tips-box">
+                <div class="tips-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span>Field Broadcasting Guidelines</span>
+                </div>
+                <ul class="tips-list">
+                    <li>Hold mobile in <strong>Landscape (16:9)</strong> for full broadcast TV aspect.</li>
+                    <li>Ensure 4G/5G signal indicator shows at least 3 bars.</li>
+                    <li>Social Media Desk can push talkback prompts to your screen at any moment.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 (function() {
@@ -1188,14 +1265,16 @@
     const canvasCtx = broadcastCanvas ? broadcastCanvas.getContext('2d') : null;
     let canvasAnimId = null;
 
-    // Dedicated in-memory Image for Prameya live logo (Base64 instant zero-latency preload)
+    // Dedicated in-memory Image for Prameya live logo
     const channelLogoImage = new Image();
-    const logoDataUri = "{{ channel_logo_b64|escapejs }}";
-    if (logoDataUri) {
-        channelLogoImage.src = logoDataUri;
-    } else {
-        channelLogoImage.src = "{% static 'images/liveimage.png' %}";
-    }
+    channelLogoImage.src = "{% static 'images/liveimage.png' %}";
+
+    // Dedicated in-memory Image for Reporter Profile Photo
+    const reporterPhotoImage = new Image();
+    reporterPhotoImage.crossOrigin = "anonymous";
+    {% if reporter.profile_image %}
+    reporterPhotoImage.src = "{{ reporter.profile_image.url }}";
+    {% endif %}
 
     function roundRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
@@ -1309,24 +1388,75 @@
             const repDist = "{{ district|escapejs }}" || "Odisha";
             const headline = (strapHeadline ? strapHeadline.textContent : '') || (headlineInput ? headlineInput.value : '') || "Ground Zero Live Field Report";
 
-            // 1) Reporter ID & District Chip
-            const repBadgeY = H - 126;
-            const repBadgeX = 40;
-            const repText = `🎤  ${repName}  |  ${repDist}`;
+            // 1) Reporter Square Profile Photo Box & Adjacent Name/District Badge
+            const strapY = H - 86;
+            const photoSize = 54;  // Prominent square photo box!
+            const photoX = 40;
+            const photoY = strapY - photoSize - 8;
+
+            // A. Draw Square Photo Box (Before Name)
+            const hasRepPhoto = (reporterPhotoImage && reporterPhotoImage.complete && reporterPhotoImage.naturalWidth > 0);
+            if (hasRepPhoto) {
+                canvasCtx.save();
+                roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                canvasCtx.clip();
+                const imgW = reporterPhotoImage.naturalWidth;
+                const imgH = reporterPhotoImage.naturalHeight;
+                const minD = Math.min(imgW, imgH);
+                const sx = (imgW - minD) / 2;
+                const sy = (imgH - minD) / 2;
+                canvasCtx.drawImage(reporterPhotoImage, sx, sy, minD, minD, photoX, photoY, photoSize, photoSize);
+                canvasCtx.restore();
+
+                // Crisp Amber border around the square photo box
+                canvasCtx.save();
+                canvasCtx.strokeStyle = '#f59e0b';
+                canvasCtx.lineWidth = 2.5;
+                roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                canvasCtx.stroke();
+                canvasCtx.restore();
+            } else {
+                // Fallback square photo frame with initials
+                canvasCtx.save();
+                canvasCtx.fillStyle = '#0f172a';
+                roundRect(canvasCtx, photoX, photoY, photoSize, photoSize, 6);
+                canvasCtx.fill();
+                canvasCtx.strokeStyle = '#f59e0b';
+                canvasCtx.lineWidth = 2;
+                canvasCtx.stroke();
+
+                canvasCtx.fillStyle = '#f59e0b';
+                canvasCtx.font = 'bold 20px "Inter", -apple-system, sans-serif';
+                canvasCtx.textAlign = 'center';
+                canvasCtx.textBaseline = 'middle';
+                const initials = repName.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '🎤';
+                canvasCtx.fillText(initials, photoX + (photoSize / 2), photoY + (photoSize / 2));
+                canvasCtx.restore();
+            }
+
+            // B. Draw Reporter Name & District Badge (Right next to square photo)
+            const badgeX = photoX + photoSize + 10;
+            const badgeH = 40;
+            const badgeY = photoY + Math.round((photoSize - badgeH) / 2); // vertically centered
+            const repText = `${repName}` + (repDist ? `  |  ${repDist.toUpperCase()}` : '');
             canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
             const repTextW = canvasCtx.measureText(repText).width;
-            const repBadgeW = Math.max(200, repTextW + 30);
+            const badgeW = repTextW + 32;
 
             canvasCtx.fillStyle = 'rgba(11, 15, 25, 0.95)';
-            roundRect(canvasCtx, repBadgeX, repBadgeY, repBadgeW, 32, 4);
+            roundRect(canvasCtx, badgeX, badgeY, badgeW, badgeH, 6);
             canvasCtx.fill();
 
-            // Amber Accent Line
+            // Amber Accent Line on left of badge
             canvasCtx.fillStyle = '#f59e0b';
-            canvasCtx.fillRect(repBadgeX, repBadgeY, 5, 32);
+            canvasCtx.fillRect(badgeX, badgeY, 5, badgeH);
 
+            // Reporter Name & District text
             canvasCtx.fillStyle = '#f8fafc';
-            canvasCtx.fillText(repText, repBadgeX + 16, repBadgeY + 22);
+            canvasCtx.font = 'bold 15px "Inter", -apple-system, sans-serif';
+            canvasCtx.textAlign = 'left';
+            canvasCtx.textBaseline = 'middle';
+            canvasCtx.fillText(repText, badgeX + 16, badgeY + (badgeH / 2));
 
             // 2) Breaking News Main Bar
             const strapX = 40;
@@ -1656,7 +1786,7 @@
     }
 
     // Live Video Upload Handler with Real-Time Percentage (%) Progress
-    function uploadVideoWithProgress(isDirectLive) {
+    function uploadVideoWithProgress() {
         const headline = headlineInput.value.trim();
         const district = districtInput.value.trim();
 
@@ -1673,9 +1803,11 @@
         const file = recordedVideoFileInput.files[0];
         const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
 
-        // Disable buttons during upload
-        if (btnDirectUploadLive) btnDirectUploadLive.disabled = true;
-        if (btnUploadToLive) btnUploadToLive.disabled = true;
+        // Disable upload button during upload
+        if (btnUploadToLive) {
+            btnUploadToLive.disabled = true;
+            btnUploadToLive.innerHTML = '<span class="pulse-beacon" style="width: 8px; height: 8px; display: inline-block; margin-right: 6px;"></span><span>Uploading to Desk...</span>';
+        }
 
         // Show Progress Card
         if (uploadProgressCard) {
@@ -1683,9 +1815,7 @@
             uploadProgressBar.style.width = '0%';
             uploadProgressPercentBadge.textContent = '0%';
             uploadProgressSizeText.textContent = `0 MB / ${fileSizeMB} MB`;
-            uploadProgressStatusText.textContent = isDirectLive 
-                ? 'Uploading video to stream LIVE on YouTube...' 
-                : 'Uploading video to Social Media Desk...';
+            uploadProgressStatusText.textContent = 'Uploading video to Social Media Desk...';
             uploadProgressEtaText.textContent = 'Starting upload...';
         }
 
@@ -1693,10 +1823,6 @@
         formData.append('headline', headline);
         formData.append('district', district);
         formData.append('broadcast_type', 'recorded');
-        if (isDirectLive) {
-            formData.append('direct_live', '1');
-            formData.append('destination', 'youtube');
-        }
         formData.append('video_file', file);
 
         const xhr = new XMLHttpRequest();
@@ -1721,9 +1847,7 @@
             if (uploadProgressBar) uploadProgressBar.style.width = '100%';
             if (uploadProgressPercentBadge) uploadProgressPercentBadge.textContent = '100%';
             if (uploadProgressStatusText) {
-                uploadProgressStatusText.textContent = isDirectLive 
-                    ? '✔ Upload 100% Complete! Initializing YouTube Live Stream with Prameya Logo...'
-                    : '✔ Upload 100% Complete! Dispatched to Social Media Desk.';
+                uploadProgressStatusText.textContent = '✔ Upload 100% Complete! Waiting for Social Media Desk Approval...';
             }
 
             try {
@@ -1734,16 +1858,12 @@
 
                     setTimeout(() => {
                         if (uploadProgressCard) uploadProgressCard.style.display = 'none';
-                        if (data.status === 'live') {
-                            transitionToLive(data.destination_display || 'YouTube Live', data.started_at, true);
-                        } else {
-                            pendingHeadlineText.textContent = headline + " (Recorded Video Live)";
-                            transitionToPending();
-                        }
+                        pendingHeadlineText.textContent = headline + " (Recorded Video Live)";
+                        transitionToPending();
                         startPolling();
                     }, 800);
                 } else {
-                    alert('Broadcast launch failed: ' + (data.error || 'Unknown error'));
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
                     resetUploadButtons();
                 }
             } catch (err) {
@@ -1762,24 +1882,15 @@
 
     function resetUploadButtons() {
         if (uploadProgressCard) uploadProgressCard.style.display = 'none';
-        if (btnDirectUploadLive) {
-            btnDirectUploadLive.disabled = false;
-            btnDirectUploadLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>⚡ UPLOAD & GO LIVE NOW (ON YOUTUBE)</span>';
-        }
         if (btnUploadToLive) {
             btnUploadToLive.disabled = false;
-            btnUploadToLive.innerHTML = '<span>📤 Upload for Social Media Approval</span>';
+            btnUploadToLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>📤 UPLOAD FOR SOCIAL MEDIA APPROVAL</span>';
         }
-    }
-
-    // Direct Upload & Go Live Button Listener
-    if (btnDirectUploadLive) {
-        btnDirectUploadLive.addEventListener('click', () => uploadVideoWithProgress(true));
     }
 
     // Upload for Desk Approval Button Listener
     if (btnUploadToLive) {
-        btnUploadToLive.addEventListener('click', () => uploadVideoWithProgress(false));
+        btnUploadToLive.addEventListener('click', uploadVideoWithProgress);
     }
 
     // Request Live Broadcast (Camera Mode - Desk Approval)
@@ -1864,17 +1975,13 @@
             btnDirectLiveCamera.disabled = false;
             btnDirectLiveCamera.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg><span>🔴 GO LIVE NOW (ON YOUTUBE)</span>';
         }
-        if (btnDirectUploadLive) {
-            btnDirectUploadLive.disabled = false;
-            btnDirectUploadLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>⚡ UPLOAD & GO LIVE NOW (ON YOUTUBE)</span>';
-        }
         if (btnRequestLive) {
             btnRequestLive.disabled = false;
             btnRequestLive.innerHTML = '<span>📡 Request Social Media Approval</span>';
         }
         if (btnUploadToLive) {
             btnUploadToLive.disabled = false;
-            btnUploadToLive.innerHTML = '<span>📤 Upload for Social Media Approval</span>';
+            btnUploadToLive.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>📤 UPLOAD FOR SOCIAL MEDIA APPROVAL</span>';
         }
         clearInterval(timerInterval);
     }

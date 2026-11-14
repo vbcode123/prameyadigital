@@ -175,12 +175,12 @@ class RelaySession:
             logger.info(f"[Relay {self.session_id}] FFmpeg relay stopped. Total chunks: {self.chunks_received}, bytes: {self.bytes_relayed}")
 
 
-def generate_broadcast_overlay(output_path, headline="Live Coverage", district="", reporter_name="", logo_path=None):
+def generate_broadcast_overlay(output_path, headline="Live Coverage", district="", reporter_name="", logo_path=None, reporter_photo_path=None):
     """
     Generates a 1280x720 transparent RGBA broadcast plate containing:
       - Top-right: Prameya Digital logo (scaled, crisp)
       - Top-left: Crimson red LIVE pill badge
-      - Bottom-left: Reporter Name & District identification chip
+      - Bottom-left: Reporter circular avatar photo + Name & District identification chip
       - Bottom: Sleek dark lower-third strap with red BREAKING tag & headline text.
     """
     try:
@@ -242,13 +242,55 @@ def generate_broadcast_overlay(output_path, headline="Live Coverage", district="
         if not text_font:
             text_font = ImageFont.load_default()
 
-        # 3. Reporter Name & District Chip (above strap)
+        # 3. Reporter Square Photo Box & Adjacent Name/District Badge (above strap)
         if reporter_name:
-            rep_text = f"🎤  {reporter_name}" + (f"  |  {district.upper()}" if district else "")
-            chip_w = min(480, max(220, len(rep_text) * 11 + 30))
-            draw.rounded_rectangle([40, 598, 40 + chip_w, 636], radius=6, fill=(15, 23, 42, 235))
-            draw.rectangle([40, 598, 46, 636], fill=(245, 158, 11, 255))
-            draw.text((56, 608), rep_text, fill=(248, 250, 252, 255), font=text_font)
+            rep_text = f"{reporter_name}" + (f"  |  {district.upper()}" if district else "")
+            text_w = int(draw.textlength(rep_text, font=text_font)) if hasattr(draw, 'textlength') else len(rep_text) * 11
+
+            photo_size = 54
+            photo_x = 40
+            photo_y = 574
+
+            # A. Draw Square Photo Box (Before Name)
+            photo_drawn = False
+            if reporter_photo_path and os.path.exists(reporter_photo_path):
+                try:
+                    rep_img = Image.open(reporter_photo_path).convert('RGBA')
+                    min_dim = min(rep_img.size)
+                    crop_x = (rep_img.width - min_dim) // 2
+                    crop_y = (rep_img.height - min_dim) // 2
+                    rep_img = rep_img.crop((crop_x, crop_y, crop_x + min_dim, crop_y + min_dim))
+                    rep_img = rep_img.resize((photo_size, photo_size), Image.Resampling.LANCZOS)
+
+                    mask = Image.new('L', (photo_size, photo_size), 0)
+                    mask_draw = ImageDraw.Draw(mask)
+                    mask_draw.rounded_rectangle([0, 0, photo_size - 1, photo_size - 1], radius=6, fill=255)
+
+                    overlay.paste(rep_img, (photo_x, photo_y), mask=mask)
+                    # Amber border around square photo
+                    draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_size, photo_y + photo_size], radius=6, outline=(245, 158, 11, 255), width=2)
+                    photo_drawn = True
+                except Exception as e:
+                    logger.warning(f"Failed to paste reporter photo on overlay: {e}")
+
+            if not photo_drawn:
+                # Fallback square avatar with initials badge
+                draw.rounded_rectangle([photo_x, photo_y, photo_x + photo_size, photo_y + photo_size], radius=6, fill=(15, 23, 42, 245), outline=(245, 158, 11, 255), width=2)
+                initials = "".join([w[0] for w in reporter_name.split() if w])[:2].upper() or "🎤"
+                try:
+                    draw.text((photo_x + 14, photo_y + 16), initials, fill=(245, 158, 11, 255), font=text_font)
+                except Exception:
+                    pass
+
+            # B. Draw Reporter Name & District Badge (Right next to square photo)
+            badge_x = photo_x + photo_size + 10
+            badge_h = 40
+            badge_y = photo_y + (photo_size - badge_h) // 2
+            badge_w = min(560, max(180, text_w + 32))
+
+            draw.rounded_rectangle([badge_x, badge_y, badge_x + badge_w, badge_y + badge_h], radius=6, fill=(15, 23, 42, 235))
+            draw.rectangle([badge_x, badge_y, badge_x + 5, badge_y + badge_h], fill=(245, 158, 11, 255))
+            draw.text((badge_x + 16, badge_y + 11), rep_text, fill=(248, 250, 252, 255), font=text_font)
 
         # 4. Bottom Strap
         draw.rectangle([0, 645, 1280, 705], fill=(15, 23, 42, 235))
@@ -273,9 +315,9 @@ def generate_broadcast_overlay(output_path, headline="Live Coverage", district="
 class RecordedRelaySession:
     """
     Broadcasts a pre-recorded video file (MP4/WebM) to RTMP live destinations (YouTube/Facebook)
-    in real time (-re), with optional TV news overlay (Prameya logo, LIVE badge, Breaking strap).
+    in real time (-re), with optional TV news overlay (Prameya logo, LIVE badge, Breaking strap, reporter photo).
     """
-    def __init__(self, session_id, video_path, target_urls, overlay_graphics=True, headline='', district='', reporter_name=''):
+    def __init__(self, session_id, video_path, target_urls, overlay_graphics=True, headline='', district='', reporter_name='', reporter_photo_path=None):
         self.session_id = str(session_id)
         self.video_path = str(video_path)
         self.target_urls = target_urls
@@ -283,6 +325,7 @@ class RecordedRelaySession:
         self.headline = headline or "Live Broadcast"
         self.district = district or ""
         self.reporter_name = reporter_name or ""
+        self.reporter_photo_path = reporter_photo_path
         self.process = None
         self.lock = threading.RLock()
         self.is_active = False
@@ -327,7 +370,8 @@ class RecordedRelaySession:
                     ov_path,
                     headline=self.headline,
                     district=self.district,
-                    reporter_name=self.reporter_name
+                    reporter_name=self.reporter_name,
+                    reporter_photo_path=self.reporter_photo_path
                 )
                 if ok:
                     self.overlay_path = ov_path
@@ -339,27 +383,54 @@ class RecordedRelaySession:
                     except Exception:
                         pass
 
+            # Probe audio to see if the video has an audio track
+            has_audio = True
+            try:
+                probe_bin = shutil.which('ffprobe') or 'ffprobe'
+                probe_res = subprocess.run(
+                    [probe_bin, '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', self.video_path],
+                    capture_output=True, text=True, timeout=5
+                )
+                if not probe_res.stdout.strip():
+                    has_audio = False
+            except Exception:
+                has_audio = True
+
             cmd = [
                 self.ffmpeg_path,
                 '-y',
                 '-loglevel', 'warning',
+                '-fflags', '+genpts+discardcorrupt',
+                '-avoid_negative_ts', 'make_zero',
                 '-re',                          # Ingest at native real-time speed
                 '-i', self.video_path,
             ]
 
+            input_count = 1
             if self.overlay_path and os.path.exists(self.overlay_path):
-                cmd.extend(['-i', self.overlay_path])
+                cmd.extend(['-loop', '1', '-i', self.overlay_path])
+                overlay_input_idx = input_count
+                input_count += 1
                 filter_str = (
-                    '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[scaled]; '
-                    '[scaled][1:v]overlay=0:0[outv]'
+                    f'[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[scaled]; '
+                    f'[scaled][{overlay_input_idx}:v]overlay=0:0:shortest=1[outv]'
                 )
             else:
                 filter_str = '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2[outv]'
 
+            if not has_audio:
+                # Add silent stereo audio fallback to keep YouTube Live RTMP connection alive
+                cmd.extend(['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100'])
+                audio_input_idx = input_count
+                input_count += 1
+                audio_map = f'{audio_input_idx}:a'
+            else:
+                audio_map = '0:a:0?'
+
             cmd.extend([
                 '-filter_complex', filter_str,
                 '-map', '[outv]',
-                '-map', '0:a?',
+                '-map', audio_map,
                 '-c:v', 'libx264',
                 '-preset', 'veryfast',
                 '-tune', 'zerolatency',
@@ -373,7 +444,11 @@ class RecordedRelaySession:
                 '-c:a', 'aac',
                 '-b:a', '128k',
                 '-ar', '44100',
-                '-ac', '2'
+                '-ac', '2',
+                '-af', 'aresample=async=1',
+                '-max_muxing_queue_size', '1024',
+                '-flvflags', 'no_duration_filesize',
+                '-shortest',
             ])
 
             if len(self.target_urls) > 1:
@@ -515,7 +590,7 @@ class StreamingRelayManager:
         started = relay.start()
         return started, relay.error_message if not started else "Relay started"
 
-    def start_recorded_session(self, session_id, video_path, destination='youtube', overlay_graphics=True, headline='', district='', reporter_name=''):
+    def start_recorded_session(self, session_id, video_path, destination='youtube', overlay_graphics=True, headline='', district='', reporter_name='', reporter_photo_path=None):
         session_id = str(session_id)
         target_urls = self._get_target_urls(destination)
         if not target_urls:
@@ -528,7 +603,8 @@ class StreamingRelayManager:
             overlay_graphics=overlay_graphics,
             headline=headline,
             district=district,
-            reporter_name=reporter_name
+            reporter_name=reporter_name,
+            reporter_photo_path=reporter_photo_path
         )
         self.sessions[session_id] = relay
         started = relay.start()

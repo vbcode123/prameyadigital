@@ -134,6 +134,11 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Video Upload & Live Streaming Limits (Supports up to 500 MB pre-recorded broadcast videos)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000   # 500 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000   # 500 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 # Authentication URLs
 LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/dashboard/'

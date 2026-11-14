@@ -112,7 +112,10 @@
                     </div>
                     <div class="active-actions-row">
                         <button type="button" id="btnNormalEnd" class="btn-normal-end" data-session-id="{{ active_broadcast.id|default:'' }}">
-                            ⏹ Conclude Live Broadcast
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+                            </svg>
+                            <span>Conclude Live Broadcast</span>
                         </button>
                     </div>
                     <!-- RTMP Streaming Relay Status Strip -->
@@ -644,20 +647,32 @@
 }
 
 .btn-normal-end {
-    background: #1e293b;
-    color: #e2e8f0;
-    border: 1px solid #475569;
-    padding: 8px 14px;
+    background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+    color: #ffffff;
+    border: 1px solid #f97316;
+    padding: 9px 18px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: 0.3px;
     cursor: pointer;
-    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.45);
+    transition: all 0.2s ease-in-out;
 }
 
 .btn-normal-end:hover {
-    background: #334155;
-    color: #fff;
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    box-shadow: 0 6px 18px rgba(234, 88, 12, 0.6);
+    transform: translateY(-1px);
+    color: #ffffff;
+}
+
+.btn-normal-end:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
 }
 
 /* Talkback Box */
@@ -1450,7 +1465,7 @@
             previewImg.style.display = 'block';
         }
         if (placeholder) placeholder.style.display = 'none';
-        if (monitorStatus) monitorStatus.innerHTML = '● Screen Sync: <span style="color:#10b981;font-weight:bold;">LIVE 30FPS</span>';
+        if (monitorStatus) monitorStatus.innerHTML = '● Desk Monitor: <span style="color:#10b981;font-weight:bold;">LIVE SNAPSHOT (1s SYNC)</span>';
     }
 
     function startPreviewMonitor(sessionId) {

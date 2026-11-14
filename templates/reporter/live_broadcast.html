@@ -1274,21 +1274,15 @@
     const canvasCtx = broadcastCanvas ? broadcastCanvas.getContext('2d') : null;
     let canvasAnimId = null;
 
-    // Dedicated in-memory Image for Prameya live logo (Base64 data URL prevents any CORS canvas tainting)
+    // Dedicated in-memory Image for Prameya live logo
     const channelLogoImage = new Image();
-    {% if channel_logo_data_url %}
-    channelLogoImage.src = "{{ channel_logo_data_url|safe }}";
-    {% else %}
     channelLogoImage.crossOrigin = "anonymous";
     channelLogoImage.src = "{% static 'images/liveimage.png' %}";
-    {% endif %}
 
     // Dedicated in-memory Image for Reporter Profile Photo
     const reporterPhotoImage = new Image();
-    {% if reporter_photo_data_url %}
-    reporterPhotoImage.src = "{{ reporter_photo_data_url|safe }}";
-    {% elif reporter.profile_image %}
     reporterPhotoImage.crossOrigin = "anonymous";
+    {% if reporter.profile_image %}
     reporterPhotoImage.src = "{{ reporter.profile_image.url }}";
     {% endif %}
 
@@ -1942,27 +1936,22 @@
     // Request Live Broadcast (Camera Mode - Desk Approval Required)
     if (btnRequestLive) {
         btnRequestLive.addEventListener('click', async () => {
-            if (!mediaStream) {
-                const placeholderText = document.getElementById('cameraPlaceholderText');
-                if (placeholderText) placeholderText.textContent = 'Connecting camera before sending request...';
-                const started = await startCamera(currentFacingMode);
-                if (!started || !mediaStream) {
-                    alert('Camera connection is required to go live. Please click "Enable Camera & Mic" or allow browser camera permissions.');
-                    return;
-                }
-            }
-
-            const headline = headlineInput.value.trim();
-            const district = districtInput.value.trim();
+            const headline = headlineInput ? headlineInput.value.trim() : '';
+            const district = districtInput ? districtInput.value.trim() : '';
 
             if (!headline) {
                 alert('Please enter a live story headline.');
-                headlineInput.focus();
+                if (headlineInput) headlineInput.focus();
                 return;
             }
 
             btnRequestLive.disabled = true;
             btnRequestLive.innerHTML = '<span class="pulse-beacon" style="width: 8px; height: 8px; display: inline-block; margin-right: 6px;"></span><span>Submitting Request to Desk...</span>';
+
+            // Start camera in background if not already active
+            if (!mediaStream) {
+                startCamera(currentFacingMode).catch(e => console.warn('Background camera start:', e));
+            }
 
             const formData = new FormData();
             formData.append('headline', headline);

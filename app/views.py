@@ -8256,8 +8256,8 @@ def api_reporter_request_live(request):
         recorded_file = request.FILES.get('video_file')
         if not recorded_file:
             return JsonResponse({'success': False, 'error': 'Please select an MP4 video file to upload.'}, status=400)
-        # Pre-recorded videos always require Social Media Desk approval before going live
-        direct_live = False
+    # All live broadcast requests from field reporters strictly require Social Media Desk approval
+    direct_live = False
 
     # Close any stale sessions for this reporter
     LiveBroadcastSession.objects.filter(reporter=reporter, status__in=['pending', 'approved', 'live']).update(

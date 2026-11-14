@@ -1277,13 +1277,21 @@
     // Dedicated in-memory Image for Prameya live logo (Dedicated CORS-enabled endpoint, ZERO base64 in HTML)
     const channelLogoImage = new Image();
     channelLogoImage.crossOrigin = "anonymous";
-    channelLogoImage.src = "{% url 'reporter_live_logo' %}";
+    channelLogoImage.src = "/reporter/live/logo/";
+    channelLogoImage.onerror = () => {
+        channelLogoImage.crossOrigin = null;
+        channelLogoImage.src = "{% static 'images/liveimage.png' %}";
+    };
 
     // Dedicated in-memory Image for Reporter Profile Photo (Dedicated CORS-enabled endpoint, ZERO base64 in HTML)
     const reporterPhotoImage = new Image();
     {% if reporter.profile_image %}
     reporterPhotoImage.crossOrigin = "anonymous";
-    reporterPhotoImage.src = "{% url 'reporter_live_photo' %}";
+    reporterPhotoImage.src = "/reporter/live/photo/";
+    reporterPhotoImage.onerror = () => {
+        reporterPhotoImage.crossOrigin = null;
+        reporterPhotoImage.src = "{{ reporter.profile_image.url }}";
+    };
     {% endif %}
 
     function roundRect(ctx, x, y, width, height, radius) {

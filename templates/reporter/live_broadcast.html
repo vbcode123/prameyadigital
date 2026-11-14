@@ -943,7 +943,7 @@
                             <path d="M23 7l-7 5 7 5V7z"></path>
                             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                         </svg>
-                        <p class="mt-2">Camera initializing or permission required</p>
+                        <p class="mt-2" id="cameraPlaceholderText">Camera initializing or permission required</p>
                         <button type="button" id="btnRequestCamera" class="btn-primary-action btn-sm">
                             Enable Camera & Mic
                         </button>
@@ -1388,8 +1388,13 @@
             const repDist = "{{ district|escapejs }}" || "Odisha";
             const headline = (strapHeadline ? strapHeadline.textContent : '') || (headlineInput ? headlineInput.value : '') || "Ground Zero Live Field Report";
 
-            // 1) Reporter Square Profile Photo Box & Adjacent Name/District Badge
+            // Breaking News Main Bar Dimensions
+            const strapX = 40;
             const strapY = H - 86;
+            const strapW = W - 80; // 1200px
+            const strapH = 50;
+
+            // 1) Reporter Square Profile Photo Box & Adjacent Name/District Badge
             const photoSize = 54;  // Prominent square photo box!
             const photoX = 40;
             const photoY = strapY - photoSize - 8;
@@ -1459,10 +1464,7 @@
             canvasCtx.fillText(repText, badgeX + 16, badgeY + (badgeH / 2));
 
             // 2) Breaking News Main Bar
-            const strapX = 40;
-            const strapY = H - 86;
-            const strapW = W - 80; // 1200px
-            const strapH = 50;
+            // (strapX, strapY, strapW, strapH are already defined above)
 
             // Gradient / Dark Bar
             const grad = canvasCtx.createLinearGradient(strapX, strapY, strapX + strapW, strapY);
@@ -1536,6 +1538,19 @@
 
     // Initialize Camera Stream
     async function startCamera(facing = 'user') {
+        const placeholderText = document.getElementById('cameraPlaceholderText');
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (cameraPlaceholder) cameraPlaceholder.style.display = 'flex';
+            if (placeholderText) {
+                if (window.isSecureContext === false) {
+                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">🔒 HTTPS Required:</span> Browser blocks camera on insecure HTTP. Please open this site with <strong>https://</strong> or install an SSL certificate (Let\'s Encrypt) on your server.';
+                } else {
+                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">Camera Unsupported:</span> Your browser does not support mediaDevices API.';
+                }
+            }
+            return false;
+        }
+
         try {
             if (mediaStream) {
                 mediaStream.getTracks().forEach(t => t.stop());
@@ -1551,7 +1566,15 @@
                 audio: true
             };
 
-            mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (bothErr) {
+                console.warn('Audio+Video failed, retrying video only:', bothErr);
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: constraints.video
+                });
+            }
+
             cameraPreview.srcObject = mediaStream;
             cameraPreview.play().catch(() => {});
             cameraPreview.onloadedmetadata = () => {
@@ -1559,15 +1582,26 @@
                 startCanvasCompositor();
             };
             startCanvasCompositor();
-            cameraPlaceholder.style.display = 'none';
+            if (cameraPlaceholder) cameraPlaceholder.style.display = 'none';
 
             // Audio Visualizer
-            setupAudioMeter(mediaStream);
+            if (mediaStream.getAudioTracks().length > 0) {
+                setupAudioMeter(mediaStream);
+            }
 
             return true;
         } catch (err) {
             console.warn('Camera access failed:', err);
-            cameraPlaceholder.style.display = 'flex';
+            if (cameraPlaceholder) cameraPlaceholder.style.display = 'flex';
+            if (placeholderText) {
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    placeholderText.innerHTML = '<span style="color:#f59e0b;font-weight:bold;">Permission Blocked:</span> Please click the 🔒 lock / camera icon in your browser address bar and select <strong>Allow</strong> for Camera & Microphone, then reload.';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">No Camera Detected:</span> No webcam found on this device.';
+                } else {
+                    placeholderText.textContent = `Camera error: ${err.message || err.name || 'Initialization failed'}`;
+                }
+            }
             return false;
         }
     }

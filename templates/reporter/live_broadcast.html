@@ -951,7 +951,7 @@
                             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                         </svg>
                         <p class="mt-2" id="cameraPlaceholderText">Camera initializing or permission required</p>
-                        <button type="button" id="btnRequestCamera" class="btn-primary-action btn-sm">
+                        <button type="button" id="btnRequestCamera" class="btn-primary-action btn-sm" onclick="window.startCameraDirect && window.startCameraDirect()">
                             Enable Camera & Mic
                         </button>
                     </div>
@@ -1274,22 +1274,16 @@
     const canvasCtx = broadcastCanvas ? broadcastCanvas.getContext('2d') : null;
     let canvasAnimId = null;
 
-    // Dedicated in-memory Image for Prameya live logo (In-memory Data URL guarantees instant loading without CORS)
+    // Dedicated in-memory Image for Prameya live logo (Dedicated CORS-enabled endpoint, ZERO base64 in HTML)
     const channelLogoImage = new Image();
-    {% if channel_logo_data_url %}
-    channelLogoImage.src = "{{ channel_logo_data_url|safe }}";
-    {% else %}
     channelLogoImage.crossOrigin = "anonymous";
-    channelLogoImage.src = "{% static 'images/liveimage.png' %}";
-    {% endif %}
+    channelLogoImage.src = "{% url 'reporter_live_logo' %}";
 
-    // Dedicated in-memory Image for Reporter Profile Photo
+    // Dedicated in-memory Image for Reporter Profile Photo (Dedicated CORS-enabled endpoint, ZERO base64 in HTML)
     const reporterPhotoImage = new Image();
-    {% if reporter_photo_data_url %}
-    reporterPhotoImage.src = "{{ reporter_photo_data_url|safe }}";
-    {% elif reporter.profile_image %}
+    {% if reporter.profile_image %}
     reporterPhotoImage.crossOrigin = "anonymous";
-    reporterPhotoImage.src = "{{ reporter.profile_image.url }}";
+    reporterPhotoImage.src = "{% url 'reporter_live_photo' %}";
     {% endif %}
 
     function roundRect(ctx, x, y, width, height, radius) {
@@ -1571,16 +1565,30 @@
     }
 
     // Initialize Camera Stream
-    async function startCamera(facing = 'user') {
+    async function startCamera(facing = 'user', isManual = false) {
         const placeholderText = document.getElementById('cameraPlaceholderText');
+
+        // Check for Insecure HTTP context (Modern Chrome blocks mediaDevices on plain HTTP)
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             if (cameraPlaceholder) cameraPlaceholder.style.display = 'flex';
-            if (placeholderText) {
-                if (window.isSecureContext === false) {
-                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">🔒 HTTPS Required:</span> Browser blocks camera on insecure HTTP. Please open this site with <strong>https://</strong> or install an SSL certificate (Let\'s Encrypt) on your server.';
-                } else {
-                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">Camera Unsupported:</span> Your browser does not support mediaDevices API.';
+            const isHttpInsecure = (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1');
+            if (isHttpInsecure) {
+                const httpsUrl = 'https://' + window.location.host + window.location.pathname;
+                if (placeholderText) {
+                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">🔒 HTTPS Security Required:</span> Browser blocks camera on insecure HTTP.<br><a href="' + httpsUrl + '" style="color:#38bdf8;text-decoration:underline;font-weight:bold;display:inline-block;margin-top:6px;">👉 Click here to switch to HTTPS</a>';
                 }
+                if (isManual) {
+                    alert('🔒 HTTPS Required:\n\nChrome requires HTTPS to access camera & mic.\nSwitching to secure HTTPS now...');
+                    window.location.href = httpsUrl;
+                }
+                return false;
+            }
+
+            if (placeholderText) {
+                placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">Camera Unsupported:</span> Your browser does not support mediaDevices API.';
+            }
+            if (isManual) {
+                alert('Camera Unsupported: Your browser does not support the camera API. Please use Google Chrome or switch to "Upload to Live" mode.');
             }
             return false;
         }
@@ -1588,6 +1596,7 @@
         try {
             if (mediaStream) {
                 mediaStream.getTracks().forEach(t => t.stop());
+                mediaStream = null;
             }
 
             const constraints = {
@@ -1622,6 +1631,10 @@
                 }
             }
 
+            if (!mediaStream) {
+                throw new Error('Could not initialize video stream');
+            }
+
             cameraPreview.srcObject = mediaStream;
             cameraPreview.play().catch(() => {});
             cameraPreview.onloadedmetadata = () => {
@@ -1642,16 +1655,47 @@
             if (cameraPlaceholder) cameraPlaceholder.style.display = 'flex';
             if (placeholderText) {
                 if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                    placeholderText.innerHTML = '<span style="color:#f59e0b;font-weight:bold;">Permission Blocked:</span> Please click the 🔒 lock / camera icon in your browser address bar and select <strong>Allow</strong> for Camera & Microphone, then reload.';
+                    placeholderText.innerHTML = '<span style="color:#f59e0b;font-weight:bold;">Permission Blocked:</span> Please click the 🔒 lock / site settings icon in your address bar and select <strong>Allow</strong> for Camera & Mic, then retry.';
+                    if (isManual) {
+                        alert('⚠️ Camera & Mic Permission Blocked:\n\nPlease click the icon next to the address bar in Chrome, set Camera and Microphone to "Allow", and click Enable Camera again.');
+                    }
                 } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">No Camera Detected:</span> No webcam found on this device.';
+                    placeholderText.innerHTML = '<span style="color:#ef4444;font-weight:bold;">No Camera Detected:</span> No webcam found on this device. You can use "Upload to Live" on the right to broadcast pre-recorded video.';
+                    if (isManual) {
+                        alert('No Camera Detected: No webcam found on this computer. You can choose "Upload to Live" on the right to stream a recorded video package.');
+                    }
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    placeholderText.innerHTML = '<span style="color:#f59e0b;font-weight:bold;">Camera Busy:</span> Webcam is being used by another app (Zoom, Teams, OBS). Please close other apps and retry.';
+                    if (isManual) {
+                        alert('Camera Busy: Your webcam is currently open in another app. Please close other apps and click Enable Camera again.');
+                    }
                 } else {
                     placeholderText.textContent = `Camera error: ${err.message || err.name || 'Initialization failed'}`;
+                    if (isManual) {
+                        alert('Camera error: ' + (err.message || err.name));
+                    }
                 }
             }
             return false;
         }
     }
+
+    // Expose startCameraDirect globally so the HTML onclick always works
+    window.startCameraDirect = async function() {
+        if (btnRequestCamera) {
+            btnRequestCamera.disabled = true;
+            const originalText = btnRequestCamera.innerHTML;
+            btnRequestCamera.innerHTML = '<span class="pulse-beacon" style="width: 8px; height: 8px; display: inline-block; margin-right: 6px;"></span><span>Connecting Camera...</span>';
+            try {
+                await startCamera(currentFacingMode, true);
+            } finally {
+                btnRequestCamera.disabled = false;
+                btnRequestCamera.innerHTML = originalText;
+            }
+        } else {
+            await startCamera(currentFacingMode, true);
+        }
+    };
 
     // Audio Visualizer Meter
     function setupAudioMeter(stream) {
@@ -1708,16 +1752,8 @@
     }
 
     if (btnRequestCamera) {
-        btnRequestCamera.addEventListener('click', async () => {
-            btnRequestCamera.disabled = true;
-            const originalText = btnRequestCamera.innerHTML;
-            btnRequestCamera.innerHTML = '<span class="pulse-beacon" style="width: 8px; height: 8px; display: inline-block; margin-right: 6px;"></span><span>Connecting Camera...</span>';
-            try {
-                await startCamera(currentFacingMode);
-            } finally {
-                btnRequestCamera.disabled = false;
-                btnRequestCamera.innerHTML = originalText;
-            }
+        btnRequestCamera.addEventListener('click', () => {
+            if (window.startCameraDirect) window.startCameraDirect();
         });
     }
 

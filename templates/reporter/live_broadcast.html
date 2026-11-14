@@ -159,11 +159,12 @@
 /* Studio Grid */
 .studio-grid {
     display: grid;
-    grid-template-columns: 1.4fr 1fr;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
     gap: 20px;
+    align-items: start;
 }
 
-@media (max-width: 992px) {
+@media (max-width: 860px) {
     .studio-grid {
         grid-template-columns: 1fr;
     }
@@ -184,6 +185,7 @@
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
+    min-height: 240px;
     background: #000;
     overflow: hidden;
     display: flex;
@@ -207,6 +209,7 @@
     color: #94a3b8;
     text-align: center;
     padding: 20px;
+    z-index: 10;
 }
 
 .placeholder-content {
@@ -911,7 +914,7 @@
                             <span>LIVE</span>
                         </div>
                         <div class="channel-logo-tag">
-                            <img src="{% if channel_logo_data_url %}{{ channel_logo_data_url|safe }}{% else %}{% static 'images/liveimage.png' %}{% endif %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
+                            <img src="{% static 'images/liveimage.png' %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
                         </div>
                     </div>
 
@@ -919,9 +922,7 @@
                     <div class="overlay-strap-wrap">
                         <div class="strap-reporter-container">
                             <div class="strap-reporter-photo-frame">
-                                {% if reporter_photo_data_url %}
-                                <img src="{{ reporter_photo_data_url|safe }}" alt="{{ reporter.name }}" class="strap-reporter-avatar">
-                                {% elif reporter.profile_image %}
+                                {% if reporter.profile_image %}
                                 <img src="{{ reporter.profile_image.url }}" alt="{{ reporter.name }}" class="strap-reporter-avatar">
                                 {% else %}
                                 <div class="strap-reporter-avatar-fallback">{{ reporter.name|slice:":1"|upper }}</div>

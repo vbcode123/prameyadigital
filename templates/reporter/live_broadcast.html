@@ -914,7 +914,7 @@
                             <span>LIVE</span>
                         </div>
                         <div class="channel-logo-tag">
-                            <img src="{% if channel_logo_data_url %}{{ channel_logo_data_url|safe }}{% else %}{% static 'images/liveimage.png' %}{% endif %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
+                            <img src="{% static 'images/liveimage.png' %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg" crossorigin="anonymous">
                         </div>
                     </div>
 

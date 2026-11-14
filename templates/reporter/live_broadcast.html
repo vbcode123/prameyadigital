@@ -914,7 +914,7 @@
                             <span>LIVE</span>
                         </div>
                         <div class="channel-logo-tag">
-                            <img src="{% static 'images/liveimage.png' %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
+                            <img src="{% if channel_logo_data_url %}{{ channel_logo_data_url|safe }}{% else %}{% static 'images/liveimage.png' %}{% endif %}" alt="Prameya Digital" class="overlay-logo" id="overlayLogoImg">
                         </div>
                     </div>
 
@@ -1274,15 +1274,21 @@
     const canvasCtx = broadcastCanvas ? broadcastCanvas.getContext('2d') : null;
     let canvasAnimId = null;
 
-    // Dedicated in-memory Image for Prameya live logo
+    // Dedicated in-memory Image for Prameya live logo (In-memory Data URL guarantees instant loading without CORS)
     const channelLogoImage = new Image();
+    {% if channel_logo_data_url %}
+    channelLogoImage.src = "{{ channel_logo_data_url|safe }}";
+    {% else %}
     channelLogoImage.crossOrigin = "anonymous";
     channelLogoImage.src = "{% static 'images/liveimage.png' %}";
+    {% endif %}
 
     // Dedicated in-memory Image for Reporter Profile Photo
     const reporterPhotoImage = new Image();
+    {% if reporter_photo_data_url %}
+    reporterPhotoImage.src = "{{ reporter_photo_data_url|safe }}";
+    {% elif reporter.profile_image %}
     reporterPhotoImage.crossOrigin = "anonymous";
-    {% if reporter.profile_image %}
     reporterPhotoImage.src = "{{ reporter.profile_image.url }}";
     {% endif %}
 

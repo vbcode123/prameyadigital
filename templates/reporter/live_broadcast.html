@@ -996,10 +996,10 @@
 
                 <!-- Live Mode Tabs -->
                 <div class="live-mode-tabs" style="display: flex; gap: 8px; margin-bottom: 6px;">
-                    <button type="button" class="mode-tab-btn active" id="tabLiveCamera" onclick="setLiveMode('camera')">
+                    <button type="button" class="mode-tab-btn active" id="tabLiveCamera">
                         🎥 Camera Live
                     </button>
-                    <button type="button" class="mode-tab-btn" id="tabLiveUpload" onclick="setLiveMode('upload')">
+                    <button type="button" class="mode-tab-btn" id="tabLiveUpload">
                         📁 Upload to Live
                     </button>
                 </div>
@@ -1183,22 +1183,26 @@
 {% block extra_js %}
 <script>
 (function() {
-    // CSRF Token Helper
-    function getCookie(name) {
+    // CSRF Token Helper with robust cookie + DOM fallback
+    function getCsrfToken() {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
                 const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                if (cookie.substring(0, 10) === 'csrftoken=') {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
                     break;
                 }
             }
         }
-        return cookieValue;
+        if (!cookieValue) {
+            const el = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (el) cookieValue = el.value;
+        }
+        return cookieValue || '';
     }
-    const csrftoken = getCookie('csrftoken');
+    const csrftoken = getCsrfToken();
 
     // DOM Elements
     const cameraPreview = document.getElementById('cameraPreview');
@@ -1599,10 +1603,23 @@
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
             } catch (bothErr) {
-                console.warn('Audio+Video failed, retrying video only:', bothErr);
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: constraints.video
-                });
+                console.warn('High-res Audio+Video failed, retrying standard constraints:', bothErr);
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: facing },
+                        audio: true
+                    });
+                } catch (audioErr) {
+                    console.warn('Audio failed, retrying video only:', audioErr);
+                    try {
+                        mediaStream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: facing }
+                        });
+                    } catch (videoErr) {
+                        console.warn('FacingMode failed, retrying bare video:', videoErr);
+                        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    }
+                }
             }
 
             cameraPreview.srcObject = mediaStream;
@@ -1691,7 +1708,17 @@
     }
 
     if (btnRequestCamera) {
-        btnRequestCamera.addEventListener('click', () => startCamera(currentFacingMode));
+        btnRequestCamera.addEventListener('click', async () => {
+            btnRequestCamera.disabled = true;
+            const originalText = btnRequestCamera.innerHTML;
+            btnRequestCamera.innerHTML = '<span class="pulse-beacon" style="width: 8px; height: 8px; display: inline-block; margin-right: 6px;"></span><span>Connecting Camera...</span>';
+            try {
+                await startCamera(currentFacingMode);
+            } finally {
+                btnRequestCamera.disabled = false;
+                btnRequestCamera.innerHTML = originalText;
+            }
+        });
     }
 
     // Camera Stop Helper
@@ -1755,6 +1782,13 @@
         }
     }
     window.setLiveMode = setLiveMode;
+
+    if (tabLiveCamera) {
+        tabLiveCamera.addEventListener('click', () => setLiveMode('camera'));
+    }
+    if (tabLiveUpload) {
+        tabLiveUpload.addEventListener('click', () => setLiveMode('upload'));
+    }
 
     if (recordedVideoFileInput) {
         recordedVideoFileInput.addEventListener('change', () => {
@@ -1909,8 +1943,13 @@
     if (btnRequestLive) {
         btnRequestLive.addEventListener('click', async () => {
             if (!mediaStream) {
-                alert('Please click "Enable Camera & Mic" first before requesting live broadcast approval.');
-                return;
+                const placeholderText = document.getElementById('cameraPlaceholderText');
+                if (placeholderText) placeholderText.textContent = 'Connecting camera before sending request...';
+                const started = await startCamera(currentFacingMode);
+                if (!started || !mediaStream) {
+                    alert('Camera connection is required to go live. Please click "Enable Camera & Mic" or allow browser camera permissions.');
+                    return;
+                }
             }
 
             const headline = headlineInput.value.trim();
@@ -1963,21 +2002,27 @@
     }
 
     // Cancel Request
-    btnCancelRequest.addEventListener('click', () => {
-        stopPolling();
-        transitionToStandby();
-    });
+    if (btnCancelRequest) {
+        btnCancelRequest.addEventListener('click', () => {
+            stopPolling();
+            transitionToStandby();
+        });
+    }
 
     // End Live Broadcast
-    btnEndBroadcast.addEventListener('click', async () => {
-        if (!confirm('Are you sure you want to stop the live broadcast?')) return;
-        await stopLiveSession('Reporter ended session');
-    });
+    if (btnEndBroadcast) {
+        btnEndBroadcast.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to stop the live broadcast?')) return;
+            await stopLiveSession('Reporter ended session');
+        });
+    }
 
     // Start New Live Session
-    btnStartNewLive.addEventListener('click', () => {
-        transitionToStandby();
-    });
+    if (btnStartNewLive) {
+        btnStartNewLive.addEventListener('click', () => {
+            transitionToStandby();
+        });
+    }
 
     // State Transitions
     function transitionToStandby() {
@@ -2305,8 +2350,8 @@
         }
     }
 
-    // Bootstrap
-    window.addEventListener('DOMContentLoaded', () => {
+    // Bootstrap Studio
+    function bootstrapStudio() {
         const isRecActive = '{{ active_session.broadcast_type }}' === 'recorded';
         if (isRecActive) {
             setLiveMode('upload');
@@ -2323,7 +2368,13 @@
                 startPolling();
             }
         }
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootstrapStudio);
+    } else {
+        bootstrapStudio();
+    }
 })();
 </script>
 {% endblock %}
